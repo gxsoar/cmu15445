@@ -311,7 +311,8 @@ class RowMatrixOperations {
       // TODO(P0): Add implementation
       return std::unique_ptr<RowMatrix<T>>(nullptr);
     }
-    auto matrix_e = Add(matrix_d, matrixC);
+    auto matrix_e = Add(matrix_d.get(), matrixC);
+    // auto matrix_e = Add(matrix_d, matrixC);
     if (matrix_e == nullptr) {
       return std::unique_ptr<RowMatrix<T>>(nullptr);
     }
