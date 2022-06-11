@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "buffer/lru_replacer.h"
+#include "common/logger.h"
 
 namespace bustub {
 
@@ -23,17 +24,24 @@ bool LRUReplacer::Victim(frame_id_t *frame_id) {
   if (lru_cache.empty()) {
     return false;
   }
-  auto pos = to_pos[*frame_id];
-  lru_cache.erase(pos);
-  to_pos.erase(*frame_id);
-  // frame_id_t output_parameter = *frame_id;
-  // std::cout << output_parameter << std::endl;
+  frame_id_t value = lru_cache.back();
+  lru_cache.pop_back();
+  *frame_id = value;
+  LOG_INFO("the victim value : %d\n", value);
+  to_pos.erase(value);
   return true;
 }
 
 void LRUReplacer::Pin(frame_id_t frame_id) {
   std::lock_guard<std::mutex> lock(the_mutex);
-  Victim(&frame_id);
+  //如果在这个值已经被victim了
+  if (!to_pos.count(frame_id) || lru_cache.empty()) {
+    return;
+  }
+  auto &pos = to_pos[frame_id];
+  // to_pos.erase(frame_id);
+  lru_cache.erase(pos);
+  to_pos.erase(frame_id);
 }
 
 void LRUReplacer::Unpin(frame_id_t frame_id) {
@@ -54,6 +62,7 @@ void LRUReplacer::Unpin(frame_id_t frame_id) {
 size_t LRUReplacer::Size() { 
   std::lock_guard<std::mutex> lock(the_mutex);
   size_t lru_size = lru_cache.size();
+  LOG_INFO("the LRUReplacer size is : %lu\n", lru_size);
   return lru_size;
 }
 
