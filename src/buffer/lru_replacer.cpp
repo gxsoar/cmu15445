@@ -15,7 +15,13 @@
 
 namespace bustub {
 
-LRUReplacer::LRUReplacer(size_t num_pages) : num_pages(num_pages) {}
+LRUReplacer::LRUReplacer(size_t num_pages) : num_pages(num_pages) {
+  // head = std::make_unique<DLinkedNode>(DLinkedNode());
+  head = std::make_shared<DLinkedNode>();
+  tail = std::make_shared<DLinkedNode>();
+  head->next = tail;
+  tail->prev = head;
+}
 
 LRUReplacer::~LRUReplacer() = default;
 
