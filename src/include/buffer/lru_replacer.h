@@ -56,21 +56,16 @@ class LRUReplacer : public Replacer {
   //手写一个双链表的形式实现LRU
   struct DLinkedNode{
     frame_id_t frame_id;
-    std::shared_ptr<DLinkedNode> next;
-    std::shared_ptr<DLinkedNode> prev;
-    DLinkedNode(frame_id_t id) : frame_id(id) {
-      next = std::make_shared<DLinkedNode>(nullptr);
-      prev = std::make_shared<DLinkedNode>(nullptr);
-    }
-    DLinkedNode() : frame_id(-1) {
-      next = std::make_shared<DLinkedNode>(nullptr);
-      prev = std::make_shared<DLinkedNode>(nullptr);
-    }
+    DLinkedNode* next;
+    DLinkedNode* prev;
+    DLinkedNode(frame_id_t id) : frame_id(id), next(nullptr), prev(nullptr) {}
+    DLinkedNode() : frame_id(-1), next(nullptr), prev(nullptr) {}
   };
-  size_t sizes;
-  size_t capacity;
-  std::shared_ptr<DLinkedNode> head;
-  std::shared_ptr<DLinkedNode> tail;
+  std::unordered_map<frame_id_t, DLinkedNode*> cache;
+  size_t sizes;     //用来记录LRU的最大容量
+  size_t capacity;  //用来记录lru的容量的大小
+  DLinkedNode* head;
+  DLinkedNode* tail;
   // TODO(student): implement me!
 };
 
