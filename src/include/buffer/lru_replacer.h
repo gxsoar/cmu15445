@@ -52,6 +52,10 @@ class LRUReplacer : public Replacer {
   std::list<frame_id_t> lru_cache;
   size_t num_pages;
   std::mutex the_mutex;
+  struct lru_cache{
+    frame_id_t frame_id;
+    
+  }
   // TODO(student): implement me!
 };
 
