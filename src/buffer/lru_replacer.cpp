@@ -15,37 +15,37 @@
 
 namespace bustub {
 
-LRUReplacer::LRUReplacer(size_t num_pages) : num_pages(num_pages), sizes(num_pages) {
+LRUReplacer::LRUReplacer(size_t num_pages) : sizes_(num_pages) {
   // head = std::make_unique<DLinkedNode>(DLinkedNode());
-  head = new DLinkedNode();
-  tail = new DLinkedNode();
-  head->next = tail;
-  tail->prev = head;
+  head_ = new DLinkedNode(-1);
+  tail_ = new DLinkedNode(-1);
+  head_->next_node_ = tail_;
+  tail_->pre_node_ = head_;
 }
 
 LRUReplacer::~LRUReplacer() {
-  delete head;
-  delete tail;
+  delete head_;
+  delete tail_;
 }
 
 bool LRUReplacer::Victim(frame_id_t *frame_id) {
-  std::lock_guard<std::mutex> lock(the_mutex);
+  std::lock_guard<std::mutex> lock(the_mutex_);
   // if (lru_cache.empty()) {
   //   return false;
   // }
-  if (capacity == 0) {
+  if (capacity_ == 0) {
     return false;
   }
-  auto node = tail->prev;
+  auto node = tail_->pre_node_;
   //执行删除操作
-  *frame_id = node->frame_id;
-  auto pre_node = node->prev;
-  tail->prev = pre_node;
-  pre_node->next = tail;
+  *frame_id = node->id_;
+  auto pre_node = node->pre_node_;
+  tail_->pre_node_ = pre_node;
+  pre_node->next_node_ = tail_;
   delete node;
-  --capacity;
-  cache.erase(*frame_id);
-  
+  --capacity_;
+  cache_.erase(*frame_id);
+
   // frame_id_t value = lru_cache.back();
   // lru_cache.pop_back();
   // *frame_id = value;
@@ -55,37 +55,40 @@ bool LRUReplacer::Victim(frame_id_t *frame_id) {
 }
 
 void LRUReplacer::Pin(frame_id_t frame_id) {
-  std::lock_guard<std::mutex> lock(the_mutex);
-  //如果在这个值已经被victim了
+  std::lock_guard<std::mutex> lock(the_mutex_);
+
+  // 如果在这个值已经被victim了
   // // if (!to_pos.count(frame_id) || lru_cache.empty()) {
   // //   return;
   // // }
-  
+
   // auto &pos = to_pos[frame_id];
   // // to_pos.erase(frame_id);
   // lru_cache.erase(pos);
   // to_pos.erase(frame_id);
-  if (!cache.count(frame_id) || capacity == 0) {
+
+  if (cache_.count(frame_id) != 0U || capacity_ == 0) {
     return;
   }
-  auto &pos = cache[frame_id];
+  auto &pos = cache_[frame_id];
   // cache.erase(frame_id);
-  DLinkedNode* p = tail;
-  while(p != head && p != pos) {
-    p = p->prev;
+  DLinkedNode *p = tail_->pre_node_;
+  while (p != head_ && p != pos) {
+    p = p->pre_node_;
   }
-  DLinkedNode* p_prev = p->prev;
-  DLinkedNode* p_next = p->next;
-  p_prev->next = p_next;
-  p_next->prev = p_prev;
+  DLinkedNode *p_prev = p->pre_node_;
+  DLinkedNode *p_next = p->next_node_;
+  p_prev->next_node_ = p_next;
+  p_next->pre_node_ = p_prev;
   delete p;
-  --capacity;
-  cache.erase(frame_id);
+  --capacity_;
+  cache_.erase(frame_id);
 }
 
 void LRUReplacer::Unpin(frame_id_t frame_id) {
-  std::lock_guard<std::mutex> lock(the_mutex);
-  //如果已经存在对应的frame_id
+  std::lock_guard<std::mutex> lock(the_mutex_);
+
+  // 如果已经存在对应的frame_id
   // if (to_pos.count(frame_id)) {
   //   return;
   // }
@@ -96,34 +99,36 @@ void LRUReplacer::Unpin(frame_id_t frame_id) {
   //   lru_cache.push_front(frame_id);
   //   to_pos[frame_id] = lru_cache.begin();
   // }
-  if (cache.count(frame_id)) {
+
+  if (cache_.count(frame_id) == 0U) {
     return;
+  } 
+  if (sizes_ == capacity_) {
+    auto node = tail_->pre_node_;
+    auto pre_node = node->pre_node_;
+    pre_node->next_node_ = tail_;
+    tail_->pre_node_ = pre_node;
+    delete node;
+    --capacity_;
   }
-  else {
-    if (sizes == capacity) {
-      auto node = tail->prev;
-      auto pre_node = node->prev;
-      pre_node->next = tail;
-      tail->prev = pre_node;
-      delete node;
-      --capacity;
-    }
-    DLinkedNode* insert_node = new DLinkedNode(frame_id);
-    insert_node->next = head->next;
-    head->next->prev = insert_node;
-    insert_node->prev = head;
-    head->next = insert_node;
-    cache[frame_id] = insert_node;
-    ++capacity;
-  }
+  DLinkedNode *insert_node = new DLinkedNode(frame_id);
+  insert_node->next_node_ = head_->next_node_;
+  head_->next_node_->pre_node_ = insert_node;
+  insert_node->pre_node_ = head_;
+  head_->next_node_ = insert_node;
+  cache_[frame_id] = insert_node;
+  ++capacity_;
 }
 
-size_t LRUReplacer::Size() { 
-  std::lock_guard<std::mutex> lock(the_mutex);
+size_t LRUReplacer::Size() {
+  std::lock_guard<std::mutex> lock(the_mutex_);
   // size_t lru_size = lru_cache.size();
-  size_t cache_size = capacity;
+
+  size_t cache_size = capacity_;
   LOG_INFO("the LRUReplacer size is : %lu\n", cache_size);
+
   // return lru_size;
+
   return cache_size;
 }
 
