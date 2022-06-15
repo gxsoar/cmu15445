@@ -17,6 +17,7 @@
 #include <vector>
 #include <unordered_map>
 #include <iostream>
+#include <memory>
 
 #include "buffer/replacer.h"
 #include "common/config.h"
@@ -52,6 +53,24 @@ class LRUReplacer : public Replacer {
   std::list<frame_id_t> lru_cache;
   size_t num_pages;
   std::mutex the_mutex;
+  //手写一个双链表的形式实现LRU
+  struct DLinkedNode{
+    frame_id_t frame_id;
+    std::shared_ptr<DLinkedNode> next;
+    std::shared_ptr<DLinkedNode> prev;
+    DLinkedNode(frame_id_t id) : frame_id(id) {
+      next = std::make_shared<DLinkedNode>(nullptr);
+      prev = std::make_shared<DLinkedNode>(nullptr);
+    }
+    DLinkedNode() : frame_id(-1) {
+      next = std::make_shared<DLinkedNode>(nullptr);
+      prev = std::make_shared<DLinkedNode>(nullptr);
+    }
+  };
+  size_t sizes;
+  size_t capacity;
+  std::shared_ptr<DLinkedNode> head;
+  std::shared_ptr<DLinkedNode> tail;
   // TODO(student): implement me!
 };
 
