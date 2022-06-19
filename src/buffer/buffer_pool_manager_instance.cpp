@@ -14,6 +14,8 @@
 
 #include "common/macros.h"
 
+#include "common/logger.h"
+
 namespace bustub {
 
 BufferPoolManagerInstance::BufferPoolManagerInstance(size_t pool_size, DiskManager *disk_manager,
@@ -75,7 +77,7 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
   // 3.   Update P's metadata, zero out memory and add P to the page table.
   // 4.   Set the page ID output parameter. Return a pointer to P.
   std::lock_guard<std::mutex> lock(latch_);
-  int cnt = 0;
+  size_t cnt = 0;
   for (size_t i = 0; i < pool_size_; ++ i) {
     if (pages_[i].GetPinCount() != 0) {
       ++cnt;
@@ -96,8 +98,8 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
   }
   *page_id = AllocatePage();
   page_table_[*page_id] = frame_id;
-  pages_[*page_id].page_id_ = *page_id;
-  pages_[*page_id].pin_count_++;
+  pages_[frame_id].page_id_ = *page_id;
+  pages_[frame_id].pin_count_++;
   return &pages_[*page_id]; 
 }
 
@@ -110,6 +112,7 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
     Page *the_page = &pages_[frame_id];
     the_page->pin_count_++;
     replacer_->Pin(frame_id);
+    if (page_id == 0) 
     return the_page;
   }
   // 1.2    If P does not exist, find a replacement page (R) from either the free list or the replacer.
