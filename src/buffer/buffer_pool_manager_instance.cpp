@@ -97,7 +97,9 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
     }
   }
   *page_id = AllocatePage();
+  // LOG_INFO("new page_id is : %d\n", *page_id);
   page_table_[*page_id] = frame_id;
+  LOG_INFO("page_id = %d  frame_id = %d\n", *page_id, frame_id);
   pages_[frame_id].page_id_ = *page_id;
   pages_[frame_id].pin_count_++;
   return &pages_[*page_id]; 
@@ -107,12 +109,26 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
   std::lock_guard<std::mutex> lock(latch_);
   // 1.     Search the page table for the requested page (P).
   // 1.1    If P exists, pin it and return it immediately.
+  //  if all pages is pinned
+  size_t cnt =  0;
+  for (size_t i = 0; i < pool_size_; ++ i) {
+    LOG_INFO("the frame id : %lu the pin_count %d\n", i, pages_[i].GetPinCount());
+    if (pages_[i].GetPinCount() > 0) {
+      ++cnt;
+    }
+  }
+  // LOG_INFO("the count of pinned pages: %lu\n", cnt);
+  if (cnt == pool_size_) {
+    return nullptr;
+  }
   if (page_table_.count(page_id)) {
     auto frame_id = page_table_[page_id];
     Page *the_page = &pages_[frame_id];
     the_page->pin_count_++;
+    // if (page_id == 0) {
+    //   LOG_INFO("the page is # : %d the frame_id # : %d\n", the_page->page_id_, frame_id);
+    // }
     replacer_->Pin(frame_id);
-    if (page_id == 0) 
     return the_page;
   }
   // 1.2    If P does not exist, find a replacement page (R) from either the free list or the replacer.
@@ -188,9 +204,15 @@ bool BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) {
   if (the_page->GetPinCount() <= 0) {
     return false;
   }
-  the_page->pin_count_ = 0;
-  the_page->is_dirty_ = true;
-  replacer_->Unpin(frame_id);
+  // the_page->pin_count_ = 0;
+  // the_page->is_dirty_ = true;
+  // the_page->page_id_ = INVALID_PAGE_ID;
+  // page_table_.erase(the_page->GetPageId());
+  --the_page->pin_count_;
+  if (the_page->pin_count_ == 0) {
+    replacer_->Unpin(frame_id);
+  }
+  // page_table_.erase(page_id);
   return true;
 }
 
