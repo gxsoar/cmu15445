@@ -99,7 +99,7 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
   *page_id = AllocatePage();
   // LOG_INFO("new page_id is : %d\n", *page_id);
   page_table_[*page_id] = frame_id;
-  LOG_INFO("page_id = %d  frame_id = %d\n", *page_id, frame_id);
+  // LOG_INFO("page_id = %d  frame_id = %d\n", *page_id, frame_id);
   pages_[frame_id].page_id_ = *page_id;
   pages_[frame_id].pin_count_++;
   return &pages_[*page_id]; 
@@ -112,7 +112,7 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
   //  if all pages is pinned
   size_t cnt =  0;
   for (size_t i = 0; i < pool_size_; ++ i) {
-    LOG_INFO("the frame id : %lu the pin_count %d\n", i, pages_[i].GetPinCount());
+    // LOG_INFO("the frame id : %lu the pin_count %d\n", i, pages_[i].GetPinCount());
     if (pages_[i].GetPinCount() > 0) {
       ++cnt;
     }
