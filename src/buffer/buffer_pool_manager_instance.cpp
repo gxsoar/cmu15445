@@ -208,6 +208,9 @@ bool BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) {
   // the_page->is_dirty_ = true;
   // the_page->page_id_ = INVALID_PAGE_ID;
   // page_table_.erase(the_page->GetPageId());
+  if (is_dirty) {
+    FlushPage(page_id);
+  }
   --the_page->pin_count_;
   if (the_page->pin_count_ == 0) {
     replacer_->Unpin(frame_id);
