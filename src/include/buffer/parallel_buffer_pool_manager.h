@@ -18,6 +18,7 @@
 #include "storage/page/page.h"
 #include "buffer/buffer_pool_manager_instance.h"
 #include <vector>
+#include <mutex>
 
 namespace bustub {
 
@@ -94,5 +95,6 @@ private:
   size_t parallel_buffer_pool_sizes_;
   size_t pool_size_;
   size_t start_index_;
+  std::mutex latch_;
 };
 }  // namespace bustub

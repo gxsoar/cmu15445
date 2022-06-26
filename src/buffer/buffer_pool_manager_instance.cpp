@@ -51,20 +51,19 @@ BufferPoolManagerInstance::~BufferPoolManagerInstance() {
 
 bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
   // Make sure you call DiskManager::WritePage!
-  std::lock_guard<std::mutex> lock(latch_);
+  // std::lock_guard<std::mutex> lock(latch_);
   Page *the_page = &pages_[page_id];
-  if (!page_table_.count(page_id) || the_page->page_id_ == INVALID_PAGE_ID) {
+  if (the_page->page_id_ == INVALID_PAGE_ID) {
     return false;
   }
-  the_page->WLatch();
+  // LOG_INFO("the page_id is : %d and the page->data is : %s", page_id, the_page->data_);
   disk_manager_->WritePage(page_id, the_page->data_);
-  the_page->WUnlatch();
-  return true;
+  return page_table_.count(page_id);
 }
 
 void BufferPoolManagerInstance::FlushAllPgsImp() {
   // You can do it!
-  std::lock_guard<std::mutex> lock(latch_);
+  // std::lock_guard<std::mutex> lock(latch_);
   for (int i = 0; i < next_page_id_; ++ i) {
     FlushPgImp(i);
   }
@@ -96,12 +95,17 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
       return nullptr;
     }
   }
+  if (pages_[frame_id].IsDirty()) {
+    // LOG_INFO("the page id is : %d\n", pages_[frame_id].GetPageId());
+    // LOG_INFO("开始刷盘");
+    FlushPgImp(pages_[frame_id].GetPageId());
+  }
   *page_id = AllocatePage();
-  // LOG_INFO("new page_id is : %d\n", *page_id);
   page_table_[*page_id] = frame_id;
-  // LOG_INFO("page_id = %d  frame_id = %d\n", *page_id, frame_id);
   pages_[frame_id].page_id_ = *page_id;
   pages_[frame_id].pin_count_++;
+  replacer_->Pin(frame_id);
+  pages_[frame_id].ResetMemory();
   return &pages_[*page_id]; 
 }
 
@@ -109,25 +113,10 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
   std::lock_guard<std::mutex> lock(latch_);
   // 1.     Search the page table for the requested page (P).
   // 1.1    If P exists, pin it and return it immediately.
-  //  if all pages is pinned
-  size_t cnt =  0;
-  for (size_t i = 0; i < pool_size_; ++ i) {
-    // LOG_INFO("the frame id : %lu the pin_count %d\n", i, pages_[i].GetPinCount());
-    if (pages_[i].GetPinCount() > 0) {
-      ++cnt;
-    }
-  }
-  // LOG_INFO("the count of pinned pages: %lu\n", cnt);
-  if (cnt == pool_size_) {
-    return nullptr;
-  }
   if (page_table_.count(page_id)) {
     auto frame_id = page_table_[page_id];
     Page *the_page = &pages_[frame_id];
     the_page->pin_count_++;
-    // if (page_id == 0) {
-    //   LOG_INFO("the page is # : %d the frame_id # : %d\n", the_page->page_id_, frame_id);
-    // }
     replacer_->Pin(frame_id);
     return the_page;
   }
@@ -143,24 +132,26 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
       return nullptr;
     }
   }
+  if (frame_id == -1) {
+    return nullptr;
+  }
   // 2.     If R is dirty, write it back to the disk.
   // 写这个实验要想明白一件事，the_page的page_id和给定的page_id不是一回事
   Page *the_page = &pages_[frame_id];
   if (the_page->IsDirty()) {
-    the_page->WLatch();
-    disk_manager_->WritePage(the_page->GetPageId(), the_page->data_);
-    the_page->WUnlatch();
+    LOG_INFO("可以刷盘\n");
+    FlushPgImp(the_page->GetPageId());
   }
+  LOG_INFO("the victim frame_id is : %d\n", frame_id);
   // 3.     Delete R from the page table and insert P.
   page_table_.erase(the_page->GetPageId());
   page_table_[page_id] = frame_id;
   // 4.     Update P's metadata, read in the page content from disk, and then return a pointer to P.
-  the_page->RLatch();
   disk_manager_->ReadPage(page_id, the_page->data_);
-  the_page->RUnlatch();
   the_page->page_id_ = page_id;
   the_page->is_dirty_ = true;
   the_page->pin_count_++;
+  replacer_->Pin(frame_id);
   return the_page;
   // /  return nullptr;
 }
@@ -204,18 +195,18 @@ bool BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) {
   if (the_page->GetPinCount() <= 0) {
     return false;
   }
-  // the_page->pin_count_ = 0;
-  // the_page->is_dirty_ = true;
-  // the_page->page_id_ = INVALID_PAGE_ID;
-  // page_table_.erase(the_page->GetPageId());
   if (is_dirty) {
-    FlushPage(page_id);
+    the_page->is_dirty_ = true;
+  }
+  else {
+    the_page->is_dirty_ = false;
   }
   --the_page->pin_count_;
   if (the_page->pin_count_ == 0) {
+    page_table_.erase(page_id);
     replacer_->Unpin(frame_id);
+    // FlushPgImp(page_id);
   }
-  // page_table_.erase(page_id);
   return true;
 }
 

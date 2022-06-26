@@ -59,7 +59,7 @@ bool LRUReplacer::Victim(frame_id_t *frame_id) {
   frame_id_t value = lru_cache_.back();
   lru_cache_.pop_back();
   *frame_id = value;
-  LOG_INFO("the victim value : %d\n", *frame_id);
+  // LOG_INFO("the victim value : %d\n", *frame_id);
   to_pos_.erase(value);
   return true;
 }

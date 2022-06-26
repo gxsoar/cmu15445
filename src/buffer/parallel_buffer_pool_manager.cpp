@@ -66,11 +66,13 @@ Page *ParallelBufferPoolManager::NewPgImp(page_id_t *page_id) {
   // BufferPoolManagerInstances
   // 1.   From a starting index of the BPMIs, call NewPageImpl until either 1) success and return 2) looped around to
   // starting index and return nullptr
+  std::lock_guard<std::mutex> lock(latch_);
   for (size_t i = 0; i < num_instance_; ++ i) {
-    auto page = buffer_pool_[i]->NewPage(page_id);
+    auto page = buffer_pool_[start_index_]->NewPage(page_id);
     if (page != nullptr) {
       return page;
     }
+    start_index_ = (start_index_ + 1) % num_instance_;
   }
   return nullptr;
   // 2.   Bump the starting index (mod number of instances) to start search at a different BPMI each time this function
