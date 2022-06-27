@@ -22,7 +22,7 @@ ParallelBufferPoolManager::ParallelBufferPoolManager(size_t num_instances, size_
   pool_size_ = pool_size;
   start_index_ = 0;
   buffer_pool_.resize(num_instance_);
-  for (size_t i = 0; i < num_instances; ++ i) {
+  for (size_t i = 0; i < num_instances; ++i) {
     // buffer_pool_[i]
     buffer_pool_[i] = new BufferPoolManagerInstance(pool_size, num_instances, i, disk_manager, log_manager);
   }
@@ -30,7 +30,7 @@ ParallelBufferPoolManager::ParallelBufferPoolManager(size_t num_instances, size_
 
 // Update constructor to destruct all BufferPoolManagerInstances and deallocate any associated memory
 ParallelBufferPoolManager::~ParallelBufferPoolManager() {
-  for (size_t i = 0; i < num_instance_; ++ i) {
+  for (size_t i = 0; i < num_instance_; ++i) {
     delete buffer_pool_[i];
   }
 }
@@ -67,7 +67,7 @@ Page *ParallelBufferPoolManager::NewPgImp(page_id_t *page_id) {
   // 1.   From a starting index of the BPMIs, call NewPageImpl until either 1) success and return 2) looped around to
   // starting index and return nullptr
   std::lock_guard<std::mutex> lock(latch_);
-  for (size_t i = 0; i < num_instance_; ++ i) {
+  for (size_t i = 0; i < num_instance_; ++i) {
     auto page = buffer_pool_[start_index_]->NewPage(page_id);
     if (page != nullptr) {
       return page;
@@ -86,7 +86,7 @@ bool ParallelBufferPoolManager::DeletePgImp(page_id_t page_id) {
 
 void ParallelBufferPoolManager::FlushAllPgsImp() {
   // flush all pages from all BufferPoolManagerInstances
-  for (size_t i = 0; i < num_instance_; ++ i) {
+  for (size_t i = 0; i < num_instance_; ++i) {
     buffer_pool_[i]->FlushAllPages();
   }
 }
