@@ -37,6 +37,7 @@ ParallelBufferPoolManager::~ParallelBufferPoolManager() {
 
 size_t ParallelBufferPoolManager::GetPoolSize() {
   // Get size of all BufferPoolManagerInstances
+  // std::lock_guard<std::mutex> lock(latch_);
   return parallel_buffer_pool_sizes_;
 }
 

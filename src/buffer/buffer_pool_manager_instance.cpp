@@ -56,8 +56,10 @@ bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
     return false;
   }
   auto frame_id = page_table_[page_id];
-  // pages_[frame_id].is_dirty_ = false;
-  disk_manager_->WritePage(page_id, pages_[frame_id].data_);
+  pages_->WLatch();
+  pages_[frame_id].is_dirty_ = false;
+  disk_manager_->WritePage(page_id, pages_[frame_id].GetData());
+  pages_->WUnlatch();
   // page_table_.erase(page_id);
   return true;
 }
@@ -95,15 +97,15 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
     if (!ok) {
       return nullptr;
     }
+    if (pages_[frame_id].IsDirty()) {
+      FlushPgImp(pages_[frame_id].GetPageId());
+    }
   }
-  pages_[frame_id].is_dirty_ = false;
-  FlushPgImp(pages_[frame_id].GetPageId());
   page_table_.erase(pages_[frame_id].GetPageId());
   *page_id = AllocatePage();
   page_table_[*page_id] = frame_id;
   pages_[frame_id].page_id_ = *page_id;
-  pages_[frame_id].pin_count_++;
-  pages_[frame_id].is_dirty_ = true;
+  pages_[frame_id].pin_count_ = 1;
   replacer_->Pin(frame_id);
   pages_[frame_id].ResetMemory();
   FlushPgImp(*page_id);
@@ -118,7 +120,6 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
     auto frame_id = page_table_[page_id];
     Page *the_page = &pages_[frame_id];
     the_page->pin_count_++;
-    the_page->is_dirty_ = true;
     replacer_->Pin(frame_id);
     return the_page;
   }
@@ -140,19 +141,19 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
   // 2.     If R is dirty, write it back to the disk.
   // 写这个实验要想明白一件事，the_page的page_id和给定的page_id不是一回事
   Page *the_page = &pages_[frame_id];
+  the_page->pin_count_ = 0;
   if (the_page->IsDirty()) {
-    the_page->is_dirty_ = false;
     FlushPgImp(the_page->GetPageId());
   }
   // 3.     Delete R from the page table and insert P.
   page_table_.erase(the_page->GetPageId());
   page_table_[page_id] = frame_id;
   // 4.     Update P's metadata, read in the page content from disk, and then return a pointer to P.
-  disk_manager_->ReadPage(page_id, the_page->data_);
   the_page->page_id_ = page_id;
-  the_page->is_dirty_ = true;
   the_page->pin_count_++;
+  the_page->ResetMemory();
   replacer_->Pin(frame_id);
+  disk_manager_->ReadPage(page_id, the_page->GetData());
   return the_page;
 }
 
@@ -173,9 +174,9 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
   page_table_.erase(page_id);
   the_page->ResetMemory();
   the_page->page_id_ = INVALID_PAGE_ID;
-  the_page->is_dirty_ = false;
   the_page->pin_count_ = 0;
   free_list_.push_back(frame_id);
+  FlushPgImp(page_id);
   DeallocatePage(page_id);
   return true;
   // 2.   If P exists, but has a non-zero pin-count, return false. Someone is using the page.
@@ -186,18 +187,23 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
 bool BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) {
   std::lock_guard<std::mutex> lock(latch_);
   if (page_table_.count(page_id) == 0U) {
-    return false;
+    return true; 
   }
   auto frame_id = page_table_[page_id];
   Page *the_page = &pages_[frame_id];
-  if (the_page->GetPinCount() <= 0) {
-    return false;
-  }
   if (is_dirty) {
     the_page->is_dirty_ = true;
+    // FlushPgImp(page_id);
   }  
+  if (the_page->GetPinCount() < 0) {
+    return false;
+  }
+  if (the_page->GetPinCount() == 0) {
+    replacer_->Unpin(frame_id);
+    return true;
+  }
   --the_page->pin_count_;
-  if (the_page->pin_count_ == 0) {
+  if (the_page->GetPinCount() == 0) {
     replacer_->Unpin(frame_id);
   }
   return true;
