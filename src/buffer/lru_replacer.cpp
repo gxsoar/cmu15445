@@ -53,8 +53,8 @@ void LRUReplacer::Unpin(frame_id_t frame_id) {
   }
   
   if (lru_cache_.size() == num_pages_) {
-    frame_id_t frame_id = -1;
-    if (!this->Victim(&frame_id)) return;
+    frame_id_t victim_frame_id = -1;
+    if (!this->Victim(&victim_frame_id)) return;
   }
   
   lru_cache_.push_front(frame_id);
@@ -62,8 +62,8 @@ void LRUReplacer::Unpin(frame_id_t frame_id) {
 }
 
 size_t LRUReplacer::Size() {
-  size_t lru_size = lru_cache_.size();
-  return lru_size;
+  // size_t lru_size = lru_cache_.size();
+  return to_pos_.size();
 }
 
 }  // namespace bustub
