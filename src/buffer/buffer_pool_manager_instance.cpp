@@ -72,9 +72,6 @@ void BufferPoolManagerInstance::FlushAllPgsImp() {
 
 Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
   // 0.   Make sure you call AllocatePage!
-  if (*page_id == INVALID_PAGE_ID) {
-    return nullptr;
-  }
   std::scoped_lock<std::mutex> lock(latch_);
   // 1.   If all the pages in the buffer pool are pinned, return nullptr.
   size_t cnt = 0;

@@ -37,9 +37,10 @@ uint32_t HashTableDirectoryPage::GetGlobalDepthMask() {
 void HashTableDirectoryPage::IncrGlobalDepth() {
   auto old_size = this->Size();
   auto new_size = this->Size() * 2;
-  for (auto i = old_size; i < new_size; ++ i) {
-    local_depths_[i] = local_depths_[i - old_size];
-    bucket_page_ids_[i] = bucket_page_ids_[i - old_size];
+  uint32_t i = old_size, j = 0;
+  for (; i < new_size && j < old_size; ++ i, ++j) {
+    local_depths_[i] = local_depths_[j];
+    bucket_page_ids_[i] = bucket_page_ids_[j];
   }
   ++global_depth_;
 }
