@@ -40,6 +40,18 @@ bool HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vecto
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
+void HASH_TABLE_BUCKET_TYPE::GetAllValue(std::vector<std::pair<KeyType, ValueType>> *result) {
+  for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++ bucket_idx) {
+    if (!IsReadable(bucket_idx)) {
+      continue;
+    }
+    KeyType the_key = KeyAt(bucket_idx);
+    ValueType the_value = ValueAt(bucket_idx);
+    result->emplace_back(std::make_pair(the_key, the_value));
+  }
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator cmp) {
   for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++ bucket_idx) {
     if (IsReadable(bucket_idx)) {
