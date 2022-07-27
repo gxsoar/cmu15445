@@ -27,13 +27,14 @@ HASH_TABLE_TYPE::ExtendibleHashTable(const std::string &name, BufferPoolManager 
                                      const KeyComparator &comparator, HashFunction<KeyType> hash_fn)
     : buffer_pool_manager_(buffer_pool_manager), comparator_(comparator), hash_fn_(std::move(hash_fn)) {
   //  implement me!
-  dir_cnt_ = 0;
   directory_page_id_ = INVALID_PAGE_ID;
-  dir_page_ = reinterpret_cast<HashTableDirectoryPage*>(buffer_pool_manager->NewPage(&directory_page_id_, nullptr));
+  HashTableDirectoryPage *dir_page_ = reinterpret_cast<HashTableDirectoryPage*>(buffer_pool_manager->NewPage(&directory_page_id_, nullptr));
   dir_page_->SetPageId(directory_page_id_);
   auto bucket_page_idx = INVALID_PAGE_ID;
-  bucket_page_ = reinterpret_cast<HashTableBucketPage<KeyType, ValueType, KeyComparator>*>(buffer_pool_manager->NewPage(&bucket_page_idx, nullptr));
-  dir_page_->SetBucketPageId(dir_cnt_,bucket_page_idx);
+  HashTableBucketPage<KeyType, ValueType,KeyComparator> *bucket_page_ = reinterpret_cast<HashTableBucketPage<KeyType, ValueType, KeyComparator>*>(buffer_pool_manager->NewPage(&bucket_page_idx, nullptr));
+  dir_page_->SetBucketPageId(0,bucket_page_idx);
+  buffer_pool_manager->UnpinPage(directory_page_id_, false, nullptr);
+  buffer_pool_manager->UnpinPage(bucket_page_, false, nullptr);
 }
 
 /*****************************************************************************
@@ -68,13 +69,14 @@ inline uint32_t HASH_TABLE_TYPE::KeyToPageId(KeyType key, HashTableDirectoryPage
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 HashTableDirectoryPage *HASH_TABLE_TYPE::FetchDirectoryPage() {
-  assert(!buffer_pool_manager_->FetchPage(directory_page_id_));
-  return buffer_pool_manager_->FetchPage(directory_page_id_);
+  HashTableDirectoryPage *fetch_dir_page = reinterpret_cast<HashTableDirectoryPage*>(buffer_pool_manager_->FetchPage(directory_page_id_));
+  return fetch_dir_page;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 HASH_TABLE_BUCKET_TYPE *HASH_TABLE_TYPE::FetchBucketPage(page_id_t bucket_page_id) {
-  return buffer_pool_manager_->FetchPage(bucket_page_id);
+  HASH_TABLE_BUCKET_TYPE *bucket_page = reinterpret_cast<HashTableBucketPage<KeyType, ValueType, KeyComparator>*>(buffer_pool_manager_->FetchPage(bucket_page_id));
+  return bucket_page;
 }
 
 /*****************************************************************************
@@ -93,11 +95,30 @@ bool HASH_TABLE_TYPE::GetValue(Transaction *transaction, const KeyType &key, std
  *****************************************************************************/
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const ValueType &value) {
-  return false;
+  auto dir_page = FetchDirectoryPage();
+  auto dir_idx = KeyToDirectoryIndex(key, dir_page);
+  auto bucket_page_idx = dir_page->GetBucketPageId(dir_idx);
+  HASH_TABLE_BUCKET_TYPE *get_bucket_page = FetchBucketPage(bucket_page_idx);
+  bool ans = false;
+  if (get_bucket_page->IsFull()) {
+    ans = SplitInsert(transaction, key, value);
+  } else {
+    ans = get_bucket_page->Insert(key, value, comparator_);
+  }
+  buffer_pool_manager_->UnpinPage(dir_idx, true,  nullptr);
+  buffer_pool_manager_->UnpinPage(bucket_page_idx, true, nullptr);
+  return ans;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_TYPE::SplitInsert(Transaction *transaction, const KeyType &key, const ValueType &value) {
+  auto dir_page = FetchDirectoryPage();
+  auto dir_idx = KeyToDirectoryIndex(key, dir_page);
+  std::vector<std::pair<KeyType, ValueType>> res;
+  auto bucket_page_idx = dir_page->GetBucketPageId(dir_idx);
+  HASH_TABLE_BUCKET_TYPE *bucket_page = FetchBucketPage(bucket_page_idx);
+  bucket_page->GetAllValue(&res);
+  auto split_bucket_page_idx = dir_page->GetSplitImageIndex(bucket_page_idx);
   return false;
 }
 
@@ -106,7 +127,17 @@ bool HASH_TABLE_TYPE::SplitInsert(Transaction *transaction, const KeyType &key, 
  *****************************************************************************/
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const ValueType &value) {
-  return false;
+  auto dir_page = FetchDirectoryPage();
+  auto dir_idx = KeyToDirectoryIndex(key, dir_page);
+  auto bucket_page_idx = dir_page->GetBucketPageId(dir_idx);
+  HASH_TABLE_BUCKET_TYPE *get_bucket_page = FetchBucketPage(bucket_page_idx);
+  bool ans = get_bucket_page->Remove(key, value, comparator_);
+  if (get_bucket_page->IsEmpty()) {
+    Merge(transaction, key, value);
+  }
+  buffer_pool_manager_->UnpinPage(dir_idx, true, nullptr);
+  buffer_pool_manager_->UnpinPage(bucket_page_idx, true, nullptr);
+  return ans;
 }
 
 /*****************************************************************************
