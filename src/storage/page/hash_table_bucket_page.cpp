@@ -26,7 +26,7 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vector<ValueType> *result) {
   bool flag = false;
   for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++ bucket_idx) {
-    if (!IsOccupied(bucket_idx)) {
+    if (!IsReadable(bucket_idx)) {
       continue;
     }
     KeyType the_key = KeyAt(bucket_idx);
@@ -42,7 +42,7 @@ bool HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vecto
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator cmp) {
   for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++ bucket_idx) {
-    if (IsOccupied(bucket_idx)) {
+    if (IsReadable(bucket_idx)) {
       KeyType the_key = KeyAt(bucket_idx);
       ValueType the_value = ValueAt(bucket_idx);
       if (cmp(the_key, key) == 0 && the_value == value) {
@@ -146,7 +146,7 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::IsEmpty() {
   size_t bucket_idx = 0;
   for (; bucket_idx < BUCKET_ARRAY_SIZE; ++ bucket_idx) {
-    if (IsOccupied(bucket_idx)) {
+    if (IsReadable(bucket_idx)) {
       break;
     }
   }
