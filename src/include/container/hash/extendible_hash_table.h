@@ -169,6 +169,11 @@ class ExtendibleHashTable {
   // Readers includes inserts and removes, writers are splits and merges
   ReaderWriterLatch table_latch_;
   HashFunction<KeyType> hash_fn_;
+
+  //  添加dir_page and bucket_page
+  HashTableDirectoryPage *dir_page_;
+  HashTableBucketPage<KeyType, ValueType, KeyComparator> *bucket_page_;
+  uint32_t dir_cnt_;
 };
 
 }  // namespace bustub
