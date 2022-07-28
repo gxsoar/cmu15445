@@ -118,7 +118,24 @@ bool HASH_TABLE_TYPE::SplitInsert(Transaction *transaction, const KeyType &key, 
   auto bucket_page_idx = dir_page->GetBucketPageId(dir_idx);
   HASH_TABLE_BUCKET_TYPE *bucket_page = FetchBucketPage(bucket_page_idx);
   bucket_page->GetAllValue(&res);
+  bucket_page->ClearBucket();
   auto split_bucket_page_idx = dir_page->GetSplitImageIndex(bucket_page_idx);
+  auto split_bucket_page_id = INVALID_PAGE_ID;
+  HASH_TABLE_BUCKET_TYPE *split_bucket_page = 
+    reinterpret_cast<HashTableBucketPage<KeyType, ValueType, KeyComparator>*>
+                        (buffer_pool_manager_->NewPage(split_bucket_page_id, nullptr));
+  dir_page->IncrLocalDepth(bucket_page_idx);
+  if (dir_page->GetLocalDepth(bucket_page_idx) == dir_page->GetGlobalDepth()) {
+    dir_page->IncrGlobalDepth();
+  }
+  dir_page->SetBucketPageId(split_bucket_page_idx, split_bucket_page_id);
+  //  重新分配原来bucket里面的数据
+  bool flag = false;
+  for (const std::pair<KeyType, ValueType> &kv : res) {
+    assert(!Insert(transaction, kv.first, kv.second));
+  }
+  //  最后插入需要插入的kv
+  flag = Insert(transaction, key, value);
   return false;
 }
 
