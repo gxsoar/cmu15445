@@ -52,6 +52,13 @@ void HASH_TABLE_BUCKET_TYPE::GetAllValue(std::vector<std::pair<KeyType, ValueTyp
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
+void HASH_TABLE_BUCKET_TYPE::ClearBucket() {
+  for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++ bucket_idx) {
+    RemoveAt(bucket_idx);
+  }
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator cmp) {
   for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++ bucket_idx) {
     if (IsReadable(bucket_idx)) {

@@ -49,6 +49,8 @@ class HashTableBucketPage {
 
   void GetAllValue(std::vector<std::pair<KeyType, ValueType>> *result);
 
+  void ClearBucket();
+
   /**
    * Attempts to insert a key and value in the bucket.  Uses the occupied_
    * and readable_ arrays to keep track of each slot's availability.
