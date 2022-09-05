@@ -16,6 +16,7 @@
 #include "storage/index/generic_key.h"
 #include "storage/index/hash_comparator.h"
 #include "storage/table/tmp_tuple.h"
+#include <iostream>
 
 #define SHIFT 3
 #define MASK 0x7
@@ -24,7 +25,6 @@ namespace bustub {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vector<ValueType> *result) {
-  bool flag = false;
   for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++ bucket_idx) {
     if (!IsReadable(bucket_idx)) {
       continue;
@@ -33,10 +33,9 @@ bool HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vecto
     if (cmp(the_key, key) == 0) {
       ValueType the_value = ValueAt(bucket_idx);
       result->push_back(the_value);
-      flag = true;
     }
   }
-  return flag;
+  return !result->empty();
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
@@ -70,8 +69,6 @@ bool HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator 
     } else {
       array_[bucket_idx].first = key;
       array_[bucket_idx].second = value;
-      // std::cout << "key = " <<array_[bucket_idx].first << " " << "value = "<< array_[bucket_idx].second << std::endl;
-      // LOG_INFO("key = %d value = %d\n", array_[bucket_idx].first, array_[bucket_idx].second);
       SetOccupied(bucket_idx);
       SetReadable(bucket_idx);
       return true;
@@ -143,7 +140,7 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::IsFull() {
   size_t bucket_idx = 0;
   for (; bucket_idx < BUCKET_ARRAY_SIZE; ++ bucket_idx) {
-    if (!IsOccupied(bucket_idx)) {
+    if (!IsReadable(bucket_idx)) {
       break;
     }
   }

@@ -172,6 +172,8 @@ class HashTableDirectoryPage {
    */
   uint32_t GetLocalHighBit(uint32_t bucket_idx);
 
+  void Shrink();
+
   /**
    * VerifyIntegrity
    *
