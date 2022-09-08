@@ -90,7 +90,6 @@ bool HASH_TABLE_BUCKET_TYPE::Remove(KeyType key, ValueType value, KeyComparator 
         return false;
       }
       RemoveAt(bucket_idx);
-      // std::cout << "after removeat " << IsOccupied(bucket_idx) << std::endl;
       return true;
     }
   }
@@ -109,7 +108,6 @@ ValueType HASH_TABLE_BUCKET_TYPE::ValueAt(uint32_t bucket_idx) const {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void HASH_TABLE_BUCKET_TYPE::RemoveAt(uint32_t bucket_idx) {
-  // occupied_[bucket_idx >> SHIFT] &= ~(1 << (bucket_idx & MASK));
   readable_[bucket_idx >> SHIFT] &= ~(1 << (bucket_idx & MASK)); 
 }
 

@@ -53,7 +53,6 @@ page_id_t HashTableDirectoryPage::GetBucketPageId(uint32_t bucket_idx) {
 }
 
 void HashTableDirectoryPage::SetBucketPageId(uint32_t bucket_idx, page_id_t bucket_page_id) {
-  // LOG_INFO("bucket_idx: %u, bucket_page_id: %u\n", bucket_idx, bucket_page_id);
   bucket_page_ids_[bucket_idx] = bucket_page_id;
 }
 
@@ -73,7 +72,6 @@ bool HashTableDirectoryPage::CanShrink() {
 }
 
 uint32_t HashTableDirectoryPage::GetLocalDepth(uint32_t bucket_idx) { 
-  // this->PrintDirectory();
   auto local_depth = local_depths_[bucket_idx];
   return local_depth;
 }
@@ -102,6 +100,7 @@ uint32_t HashTableDirectoryPage::GetLocalDepthMask(uint32_t bucket_idx) {
 uint32_t HashTableDirectoryPage::GetSplitImageIndex(uint32_t bucket_idx) {
   auto local_depth = local_depths_[bucket_idx] - 1;
   auto split_image_idx = bucket_idx ^ (1 << local_depth);
+  // LOG_INFO("bucket_idx = %u local_depth = %u split_image_idx = %u", bucket_idx, local_depth, split_image_idx);
   return split_image_idx;
 }
 
