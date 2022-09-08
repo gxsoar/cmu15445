@@ -51,14 +51,14 @@ void LRUReplacer::Unpin(frame_id_t frame_id) {
   if (to_pos_.count(frame_id) != 0U) {
     return;
   }
-  
+
   if (Size() == num_pages_) {
     frame_id_t victim_frame_id = -1;
     if (!this->Victim(&victim_frame_id)) {
       return;
     }
   }
-  
+
   lru_cache_.push_front(frame_id);
   to_pos_[frame_id] = lru_cache_.begin();
 }

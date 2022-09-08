@@ -113,7 +113,7 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
   disk_manager_->WritePage(new_page->GetPageId(), new_page->GetData());
   // 4.   Set the page ID output parameter. Return a pointer to P.
   replacer_->Pin(frame_id);
-  return new_page; 
+  return new_page;
 }
 
 Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
@@ -199,13 +199,13 @@ bool BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) {
     return false;
   }
   if (page_table_.count(page_id) == 0U) {
-    return true; 
+    return true;
   }
   auto frame_id = page_table_[page_id];
   Page *the_page = &pages_[frame_id];
   if (is_dirty) {
     the_page->is_dirty_ = true;
-  }  
+  }
   if (the_page->GetPinCount() < 0) {
     return false;
   }

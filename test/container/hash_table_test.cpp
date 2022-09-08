@@ -212,5 +212,4 @@ TEST(HashTableTest, HardTest) {
   delete bpm;
 }
 
-
 }  // namespace bustub

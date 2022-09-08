@@ -11,12 +11,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "storage/page/hash_table_bucket_page.h"
+#include <iostream>
 #include "common/logger.h"
 #include "common/util/hash_util.h"
 #include "storage/index/generic_key.h"
 #include "storage/index/hash_comparator.h"
 #include "storage/table/tmp_tuple.h"
-#include <iostream>
 
 #define SHIFT 3
 #define MASK 0x7
@@ -25,7 +25,7 @@ namespace bustub {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vector<ValueType> *result) {
-  for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++ bucket_idx) {
+  for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++bucket_idx) {
     if (!IsReadable(bucket_idx)) {
       continue;
     }
@@ -40,7 +40,7 @@ bool HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vecto
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void HASH_TABLE_BUCKET_TYPE::GetAllValue(std::vector<std::pair<KeyType, ValueType>> *result) {
-  for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++ bucket_idx) {
+  for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++bucket_idx) {
     if (!IsReadable(bucket_idx)) {
       continue;
     }
@@ -52,14 +52,14 @@ void HASH_TABLE_BUCKET_TYPE::GetAllValue(std::vector<std::pair<KeyType, ValueTyp
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void HASH_TABLE_BUCKET_TYPE::ClearBucket() {
-  for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++ bucket_idx) {
+  for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++bucket_idx) {
     RemoveAt(bucket_idx);
   }
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator cmp) {
-  for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++ bucket_idx) {
+  for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++bucket_idx) {
     if (IsReadable(bucket_idx)) {
       KeyType the_key = KeyAt(bucket_idx);
       ValueType the_value = ValueAt(bucket_idx);
@@ -79,7 +79,7 @@ bool HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator 
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::Remove(KeyType key, ValueType value, KeyComparator cmp) {
-  for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++ bucket_idx) {
+  for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++bucket_idx) {
     if (!IsReadable(bucket_idx)) {
       continue;
     }
@@ -108,7 +108,7 @@ ValueType HASH_TABLE_BUCKET_TYPE::ValueAt(uint32_t bucket_idx) const {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void HASH_TABLE_BUCKET_TYPE::RemoveAt(uint32_t bucket_idx) {
-  readable_[bucket_idx >> SHIFT] &= ~(1 << (bucket_idx & MASK)); 
+  readable_[bucket_idx >> SHIFT] &= ~(1 << (bucket_idx & MASK));
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
@@ -131,13 +131,13 @@ bool HASH_TABLE_BUCKET_TYPE::IsReadable(uint32_t bucket_idx) const {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void HASH_TABLE_BUCKET_TYPE::SetReadable(uint32_t bucket_idx) {
-  readable_[bucket_idx >>SHIFT] |= (1 << (bucket_idx & MASK));
+  readable_[bucket_idx >> SHIFT] |= (1 << (bucket_idx & MASK));
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::IsFull() {
   size_t bucket_idx = 0;
-  for (; bucket_idx < BUCKET_ARRAY_SIZE; ++ bucket_idx) {
+  for (; bucket_idx < BUCKET_ARRAY_SIZE; ++bucket_idx) {
     if (!IsReadable(bucket_idx)) {
       break;
     }
@@ -159,7 +159,7 @@ uint32_t HASH_TABLE_BUCKET_TYPE::NumReadable() {
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::IsEmpty() {
   size_t bucket_idx = 0;
-  for (; bucket_idx < BUCKET_ARRAY_SIZE; ++ bucket_idx) {
+  for (; bucket_idx < BUCKET_ARRAY_SIZE; ++bucket_idx) {
     if (IsReadable(bucket_idx)) {
       break;
     }

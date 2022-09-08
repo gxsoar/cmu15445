@@ -12,11 +12,11 @@
 
 #pragma once
 
+#include <bitset>
 #include <cassert>
 #include <climits>
 #include <cstdlib>
 #include <string>
-#include <bitset>
 
 #include "storage/index/generic_key.h"
 #include "storage/page/hash_table_page_defs.h"
