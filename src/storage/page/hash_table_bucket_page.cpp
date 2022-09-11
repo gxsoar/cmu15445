@@ -18,7 +18,7 @@
 #include "storage/index/hash_comparator.h"
 #include "storage/table/tmp_tuple.h"
 
-#define SHIFT 3
+#define SHIFT 0x3
 #define MASK 0x7
 
 namespace bustub {
@@ -120,8 +120,6 @@ bool HASH_TABLE_BUCKET_TYPE::IsOccupied(uint32_t bucket_idx) const {
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void HASH_TABLE_BUCKET_TYPE::SetOccupied(uint32_t bucket_idx) {
   occupied_[bucket_idx >> SHIFT] |= (1 << (bucket_idx & MASK));
-  // std::cout << "bucket_idx = "<< bucket_idx << " " << IsOccupied(bucket_idx) << std::endl;
-  // LOG_INFO("bucket_idx = %d, occupied_[bucket_idx] = %d\n", bucket_idx, occupied_[bucket_idx]);
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
@@ -136,13 +134,15 @@ void HASH_TABLE_BUCKET_TYPE::SetReadable(uint32_t bucket_idx) {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::IsFull() {
-  size_t bucket_idx = 0;
-  for (; bucket_idx < BUCKET_ARRAY_SIZE; ++bucket_idx) {
+  for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++bucket_idx) {
+    if (!IsOccupied(bucket_idx)) {
+      return false;
+    }
     if (!IsReadable(bucket_idx)) {
-      break;
+      return false;
     }
   }
-  return bucket_idx == BUCKET_ARRAY_SIZE - 1;
+  return true;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
@@ -158,13 +158,15 @@ uint32_t HASH_TABLE_BUCKET_TYPE::NumReadable() {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::IsEmpty() {
-  size_t bucket_idx = 0;
-  for (; bucket_idx < BUCKET_ARRAY_SIZE; ++bucket_idx) {
-    if (IsReadable(bucket_idx)) {
+  for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++bucket_idx) {
+    if (!IsOccupied(bucket_idx)) {
       break;
     }
+    if (IsReadable(bucket_idx)) {
+      return false;
+    }
   }
-  return bucket_idx == BUCKET_ARRAY_SIZE - 1;
+  return true;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
