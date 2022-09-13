@@ -26,6 +26,9 @@ namespace bustub {
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vector<ValueType> *result) {
   for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++bucket_idx) {
+    if (!IsOccupied(bucket_idx)) {
+      break;
+    }
     if (!IsReadable(bucket_idx)) {
       continue;
     }
@@ -59,7 +62,12 @@ void HASH_TABLE_BUCKET_TYPE::ClearBucket() {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator cmp) {
-  for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++bucket_idx) {
+  std::vector<uint32_t> vec;
+  size_t bucket_idx = 0;
+  for (; bucket_idx < BUCKET_ARRAY_SIZE; ++bucket_idx) {
+    if (!IsOccupied(bucket_idx)) {
+      break;
+    }
     if (IsReadable(bucket_idx)) {
       KeyType the_key = KeyAt(bucket_idx);
       ValueType the_value = ValueAt(bucket_idx);
@@ -67,19 +75,31 @@ bool HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator 
         return false;
       }
     } else {
-      array_[bucket_idx].first = key;
-      array_[bucket_idx].second = value;
-      SetOccupied(bucket_idx);
-      SetReadable(bucket_idx);
-      return true;
+      vec.push_back(bucket_idx);
     }
   }
-  return false;
+  size_t avail_idx;
+  if (!vec.empty()) {
+    avail_idx = vec[0];
+  } else {
+    if (bucket_idx >= BUCKET_ARRAY_SIZE) {
+      return false;
+    }
+    avail_idx = bucket_idx;
+    SetOccupied(avail_idx);
+  }
+  array_[avail_idx].first = key;
+  array_[avail_idx].second = value;
+  SetReadable(avail_idx);
+  return true;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::Remove(KeyType key, ValueType value, KeyComparator cmp) {
   for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; ++bucket_idx) {
+    if (!IsOccupied(bucket_idx)) {
+      break;
+    }
     if (!IsReadable(bucket_idx)) {
       continue;
     }
