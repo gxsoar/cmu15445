@@ -19,6 +19,10 @@
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/insert_plan.h"
 #include "storage/table/tuple.h"
+#include "catalog/catalog.h"
+#include "storage/table/table_heap.h"
+#include "storage/table/table_iterator.h"
+#include "execution/executor_factory.h"
 
 namespace bustub {
 
@@ -59,6 +63,9 @@ class InsertExecutor : public AbstractExecutor {
  private:
   /** The insert plan node to be executed*/
   const InsertPlanNode *plan_;
+  TableInfo* table_info_;
+  // TableIterator table_iter_;
+  std::vector<IndexInfo*> indexs_info_;
+  TableHeap table_heap_;
 };
-
 }  // namespace bustub
