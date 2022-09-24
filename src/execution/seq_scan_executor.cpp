@@ -28,23 +28,18 @@ bool SeqScanExecutor::Next(Tuple *tuple, RID *rid) {
   // Init();
   // auto table_iter = table_info_->table_->Begin(exec_ctx_->GetTransaction());
   auto the_end = table_info_->table_->End();
-  auto predicate = plan_->GetPredicate();
-  if (predicate == nullptr) {
-    return false;
-  }
-  bool flag = false;
   auto schema = table_info_->schema_;
   while(table_iter_ != the_end) {
     auto get_tuple = *table_iter_++;
     auto get_rid = get_tuple.GetRid();
-    if (predicate->Evaluate(&get_tuple, &schema).GetAs<bool>()) {
+    auto predicate = plan_->GetPredicate(); 
+    if (predicate && predicate->Evaluate(&get_tuple, &schema).GetAs<bool>()) {
       *tuple = get_tuple;
       *rid = get_rid;
-      flag = true;
-      break;
+      return true;
     }
   }
-  return flag;
+  return false;
 }
 
 }  // namespace bustub

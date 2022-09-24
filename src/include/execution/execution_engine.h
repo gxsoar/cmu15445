@@ -64,9 +64,6 @@ class ExecutionEngine {
           result_set->push_back(tuple);
         }
       }
-      if (result_set->empty()) {
-        throw Exception(ExceptionType::INVALID, "tuple not match");
-      }
     } catch (Exception &e) {
       // TODO(student): handle exceptions
       std::cerr << e.what() << std::endl;
