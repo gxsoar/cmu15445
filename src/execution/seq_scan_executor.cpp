@@ -25,15 +25,14 @@ void SeqScanExecutor::Init() {
 }
 
 bool SeqScanExecutor::Next(Tuple *tuple, RID *rid) {
-  // Init();
-  // auto table_iter = table_info_->table_->Begin(exec_ctx_->GetTransaction());
   auto the_end = table_info_->table_->End();
   auto schema = table_info_->schema_;
+  auto predicate = plan_->GetPredicate();
   while(table_iter_ != the_end) {
     auto get_tuple = *table_iter_++;
     auto get_rid = get_tuple.GetRid();
-    auto predicate = plan_->GetPredicate(); 
-    if (predicate && predicate->Evaluate(&get_tuple, &schema).GetAs<bool>()) {
+    // predicate在数据库中一般用于where, in, 等用来判断对应的值where后面的值是否存在, 如果不存在这些则predicate为空
+    if (predicate == nullptr || predicate->Evaluate(&get_tuple, &schema).GetAs<bool>()) {
       *tuple = get_tuple;
       *rid = get_rid;
       return true;
