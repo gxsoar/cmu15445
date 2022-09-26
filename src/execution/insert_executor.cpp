@@ -30,10 +30,10 @@ void InsertExecutor::Init() {
     }
 }
 
+
 bool InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) { 
     auto schema = table_info_->schema_;
     auto table_heap = table_info_->table_.get();
-    std::vector<Tuple> result_set;
     if (plan_->IsRawInsert()) {
         auto rawValues = plan_->RawValues();
         for (uint32_t i = 0; i < rawValues.size(); ++ i) {
@@ -43,11 +43,15 @@ bool InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
             if (!table_heap->InsertTuple(tmp_tuple, &tmp_rid, exec_ctx_->GetTransaction())) {
                 return false;
             }
-            result_set.push_back(tmp_tuple);
+            for (auto &index_info : indexs_info_) {
+                const auto index_key = tmp_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetKeyAttrs());
+                index_info->index_->InsertEntry(index_key, tmp_rid, exec_ctx_->GetTransaction());
+            }
         }    
     } else {
         Tuple tmp_tuple;
         RID tmp_rid;
+        std::vector<Tuple> result_set;
         while(child_executor_->Next(&tmp_tuple, &tmp_rid)) {
             result_set.push_back(tmp_tuple);
         }
@@ -56,11 +60,10 @@ bool InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
             if(!table_heap->InsertTuple(result_tuple, &tmp_rid, exec_ctx_->GetTransaction())) {
                 return false;
             }
-        }
-    }
-    for (auto &result_tuple : result_set) {
-        for (auto &index_info : indexs_info_) {
-            index_info->index_->InsertEntry(result_tuple, result_tuple.GetRid(), exec_ctx_->GetTransaction());
+            for (auto &index_info : indexs_info_) {
+                const auto index_key = tmp_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetKeyAttrs());
+                index_info->index_->InsertEntry(index_key, tmp_rid, exec_ctx_->GetTransaction());
+            }
         }
     }
     return false;

@@ -261,6 +261,7 @@ TEST_F(ExecutorTest, SimpleRawInsertWithIndexTest) {
     index_info->index_->ScanKey(index_key, &rids, GetTxn());
 
     Tuple indexed_tuple{};
+    // std::cout << rids[0] << std::endl;
     ASSERT_TRUE(table_info->table_->GetTuple(rids[0], &indexed_tuple, GetTxn()));
     ASSERT_EQ(indexed_tuple.GetValue(out_schema, out_schema->GetColIdx("colA")).GetAs<int32_t>(),
               table_tuple.GetValue(out_schema, out_schema->GetColIdx("colA")).GetAs<int32_t>());
