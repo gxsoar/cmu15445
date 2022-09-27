@@ -32,25 +32,22 @@ bool UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
   Tuple tmp_tuple;
   RID tmp_rid;
   Schema schema = table_info_->schema_;
-  if (!child_executor_->Next(&tmp_tuple, &tmp_rid)) {
-    return false;
-  }
-  if (!table_heap->GetTuple(tmp_rid, &tmp_tuple, exec_ctx_->GetTransaction())) {
-    return false;
-  }
-  Tuple new_tuple = GenerateUpdatedTuple(tmp_tuple);
-  bool is_updated = true;
-  is_updated = table_heap->UpdateTuple(new_tuple, tmp_rid, exec_ctx_->GetTransaction());
-  if (is_updated) {
-    RID new_rid = tmp_rid;
-    for (auto &index_info : indexs_info) {
-      auto old_index_key = tmp_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetKeyAttrs());
-      index_info->index_->DeleteEntry(old_index_key, tmp_rid, exec_ctx_->GetTransaction());
-      auto new_index_key = new_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetKeyAttrs());
-      index_info->index_->InsertEntry(new_index_key, new_rid, exec_ctx_->GetTransaction());
+  while(child_executor_->Next(&tmp_tuple, &tmp_rid)) {
+    if (!table_heap->GetTuple(tmp_rid, &tmp_tuple, exec_ctx_->GetTransaction())) {
+      return false;
+    }
+    Tuple new_tuple = GenerateUpdatedTuple(tmp_tuple);
+    if (table_heap->UpdateTuple(new_tuple, tmp_rid, exec_ctx_->GetTransaction())) {
+      RID new_rid = tmp_rid;
+      for (auto &index_info : indexs_info) {
+        auto old_index_key = tmp_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetKeyAttrs());
+        index_info->index_->DeleteEntry(old_index_key, tmp_rid, exec_ctx_->GetTransaction());
+        auto new_index_key = new_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetKeyAttrs());
+        index_info->index_->InsertEntry(new_index_key, new_rid, exec_ctx_->GetTransaction());
+      }
     }
   }
-  return is_updated;
+  return false;
 }
 
 Tuple UpdateExecutor::GenerateUpdatedTuple(const Tuple &src_tuple) {

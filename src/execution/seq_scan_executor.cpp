@@ -33,13 +33,13 @@ bool SeqScanExecutor::Next(Tuple *tuple, RID *rid) {
   const auto out_put_schema = plan_->OutputSchema();
   while(table_iter_ != the_end) {
     tmp_tuple = *table_iter_++;
-    tmp_rid = tuple->GetRid();
+    tmp_rid = tmp_tuple.GetRid();
     // predicate在数据库中一般用于where, in, 等用来判断对应的值where后面的值是否存在, 如果不存在这些则predicate为空
     if (predicate == nullptr || predicate->Evaluate(&tmp_tuple, &table_schema).GetAs<bool>()) {
+      const auto columns = out_put_schema->GetColumns();
       std::vector<Value> tmp_value;
-      tmp_value.reserve(out_put_schema->GetColumnCount());
-      for (size_t i = 0; i < tmp_value.capacity(); ++ i) {
-        tmp_value.push_back(out_put_schema->GetColumn(i).GetExpr()->Evaluate(&tmp_tuple, &table_schema));
+      for (const auto &col : columns) {
+        tmp_value.push_back(col.GetExpr()->Evaluate(&tmp_tuple, &table_schema));
       }
       Tuple new_tuple(tmp_value, out_put_schema);
       *tuple = new_tuple;
