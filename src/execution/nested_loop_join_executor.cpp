@@ -37,35 +37,38 @@ bool NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) {
     const Schema *left_out_put_schema = left_plan_->OutputSchema();
     const Schema *right_out_put_schema = right_plan_->OutputSchema();
     auto predicate = plan_->Predicate(); 
-    std::vector<std::pair<Tuple, RID>> left_values;
-    std::vector<std::pair<Tuple, RID>> right_values;
-    while(left_executor_->Next(tuple, rid)) {
-        left_values.push_back(std::make_pair(*tuple, *rid));
-    }
-    while(right_executor_->Next(tuple, rid)) {
-        right_values.push_back(std::make_pair(*tuple, *rid));
-    }
-    for (auto &left_val : left_values) {
-        Tuple left_tuple = left_val.first;
-        RID left_rid = left_val.second;
-        for (auto &right_val : right_values) {
-            Tuple right_tuple = right_val.first;
-            RID right_rid = right_val.second;
-            if (predicate == nullptr || 
-                predicate->EvaluateJoin(&left_tuple, left_out_put_schema, &right_tuple, right_out_put_schema).GetAs<bool>()) {
-                std::vector<Value> values;
-                std::vector<Column> left_cols = left_out_put_schema->GetColumns();
-                std::vector<Column> right_cols = right_out_put_schema->GetColumns();
-                for (const auto &l_col : left_cols) {
+    std::vector<Value> values;
+    Tuple left_tuple;
+    RID left_rid;
+    while(left_executor_->Next(&left_tuple, &left_rid)) {
+        if (!left_tuple.IsAllocated()) {
+            break;
+        }
+        Tuple right_tuple;
+        RID right_rid;
+        bool flag = false;
+        while(right_executor_->Next(&right_tuple, &right_rid)) {
+            if (!right_tuple.IsAllocated()) {
+                break;
+            }
+            if (predicate == nullptr ||
+             predicate->EvaluateJoin(&left_tuple, left_out_put_schema, &right_tuple, right_out_put_schema).GetAs<bool>()) {
+                std::vector<Column> left_column = left_out_put_schema->GetColumns();
+                std::vector<Column> right_column = right_out_put_schema->GetColumns();
+                for (const auto &l_col : left_column) {
                     values.push_back(left_tuple.GetValue(left_out_put_schema, left_out_put_schema->GetColIdx(l_col.GetName())));
                 }
-                for (const auto &r_col : right_cols) {
+                for (const auto &r_col : right_column) {
                     values.push_back(right_tuple.GetValue(right_out_put_schema, right_out_put_schema->GetColIdx(r_col.GetName())));
                 }
-                *tuple = Tuple(values, plan_out_put_schema);
-                
+                flag = true;
+                left_tuple = Tuple(values, plan_out_put_schema);
             }
-
+            *tuple = left_tuple;
+            return true;
+        }
+        if (!flag) {
+            break;
         }
     }
     return false; 
