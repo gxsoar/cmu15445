@@ -14,15 +14,16 @@
 
 #include <memory>
 #include <utility>
+#include <unordered_map>
 
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/hash_join_plan.h"
 #include "storage/table/tuple.h"
 #include "common/util/hash_util.h"
+#include "execution/expressions/abstract_expression.h"
 
 namespace bustub {
-
 /**
  * HashJoinExecutor executes a nested-loop JOIN on two tables.
  */
@@ -57,31 +58,7 @@ class HashJoinExecutor : public AbstractExecutor {
   const HashJoinPlanNode *plan_;
   std::unique_ptr<AbstractExecutor> left_child_;
   std::unique_ptr<AbstractExecutor> right_child_;
-  std::unordered_map<HashJoinKey, std::vector<Tuple>> ht_;
+  std::unordered_map<HashJoinKey, std::vector<Tuple> > ht_{};
 };
 
-struct HashJoinKey {
-  Value val;
-  bool operator==(const HashJoinKey &other) const {
-    if (val.CompareEquals(other.val) != CmpBool::CmpTrue) {
-      return false;
-    }
-    return true;
-  }
-};
 }  // namespace bustub
-
-namespace std {
-
-template<>
-struct hash<bustub::HashJoinKey> {
-  std::size_t operator() (const bustub::HashJoinKey &hash_key) const {
-    size_t curr_hash = 0;
-    bustub::Value val = hash_key.val;
-    if (!val.IsNull()) {
-      curr_hash = bustub::HashUtil::CombineHashes(curr_hash, bustub::HashUtil::HashValue(&val));
-    }
-    return curr_hash;
-  }
-};
-}
