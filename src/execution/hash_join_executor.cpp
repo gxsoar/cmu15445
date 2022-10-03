@@ -35,11 +35,9 @@ void HashJoinExecutor::Init() {
         left_join_key.val = plan_->LeftJoinKeyExpression()->Evaluate(&left_tuple, left_plan->OutputSchema());
         if (ht_.count(left_join_key) != 0U) {
             ht_[left_join_key].push_back(left_tuple);
-            // std::cout << left_rid << "ht_[left_join_key] " << ht_[left_join_key].size() << std::endl;
         } else {
             std::vector<Tuple> tmp = {left_tuple};
             ht_[left_join_key] = tmp;
-            // std::cout << left_rid << "ht_[left_join_key] " << ht_[left_join_key].size() << std::endl;
         }
     }
 }
@@ -49,7 +47,6 @@ bool HashJoinExecutor::Next(Tuple *tuple, RID *rid) {
     auto left_plan = plan_->GetLeftPlan();
     Tuple right_tuple;
     RID right_rid;
-    // std::cout << "ht size = " << ht_.size() << std::endl;
     while(right_child_->Next(&right_tuple, &right_rid)) {
         HashJoinKey right_join_key;
         right_join_key.val = plan_->RightJoinKeyExpression()->Evaluate(&right_tuple, right_plan->OutputSchema());
