@@ -13,6 +13,7 @@
 #pragma once
 
 #include "execution/plans/abstract_plan.h"
+#include "common/util/hash_util.h"
 
 namespace bustub {
 
@@ -38,4 +39,32 @@ class DistinctPlanNode : public AbstractPlanNode {
   }
 };
 
+struct DistinctKey {
+  std::vector<Value> vals;
+  bool operator==(const DistinctKey &other) const {
+    for (uint i = 0; i < other.vals.size(); ++ i) {
+      if (vals[i].CompareEquals(other.vals[i]) != CmpBool::CmpTrue) {
+        return false;
+      }
+    }
+    return true;
+  }
+};
 }  // namespace bustub
+
+namespace std {
+
+template<>
+struct hash<bustub::DistinctKey> {
+  std::size_t operator() (const bustub::DistinctKey &dist_key) const {
+    size_t curr_hash = 0;
+    auto vals = dist_key.vals;
+    for (const auto &val : vals) {
+      if (!val.IsNull()) {
+        curr_hash = bustub::HashUtil::CombineHashes(curr_hash, bustub::HashUtil::HashValue(&val));
+      }
+    }
+    return curr_hash;
+  }
+};
+} // namespace std
