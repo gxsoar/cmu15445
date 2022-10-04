@@ -41,32 +41,4 @@ class DistinctPlanNode : public AbstractPlanNode {
   }
 };
 
-struct DistinctKey {
-  std::vector<Value> vals_;
-  bool operator==(const DistinctKey &other) const {
-    for (uint i = 0; i < other.vals_.size(); ++i) {
-      if (vals_[i].CompareEquals(other.vals_[i]) != CmpBool::CmpTrue) {
-        return false;
-      }
-    }
-    return true;
-  }
-};
 }  // namespace bustub
-
-namespace std {
-
-template <>
-struct hash<bustub::DistinctKey> {
-  std::size_t operator()(const bustub::DistinctKey &dist_key) const {
-    size_t curr_hash = 0;
-    auto vals = dist_key.vals_;
-    for (const auto &val : vals) {
-      if (!val.IsNull()) {
-        curr_hash = bustub::HashUtil::CombineHashes(curr_hash, bustub::HashUtil::HashValue(&val));
-      }
-    }
-    return curr_hash;
-  }
-};
-}  // namespace std

@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "execution/executors/distinct_executor.h"
+#include "execution/plans/distinct_plan.h"
 
 namespace bustub {
 

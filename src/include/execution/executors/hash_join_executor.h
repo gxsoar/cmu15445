@@ -25,6 +25,28 @@
 #include "storage/table/tuple.h"
 
 namespace bustub {
+struct HashJoinKey {
+  Value val_;
+  bool operator==(const HashJoinKey &other) const { return val_.CompareEquals(other.val_) == CmpBool::CmpTrue; }
+};
+}  // namespace bustub
+
+namespace std {
+
+template <>
+struct hash<bustub::HashJoinKey> {
+  std::size_t operator()(const bustub::HashJoinKey &hash_key) const {
+    size_t curr_hash = 0;
+    bustub::Value val = hash_key.val_;
+    if (!val.IsNull()) {
+      curr_hash = bustub::HashUtil::CombineHashes(curr_hash, bustub::HashUtil::HashValue(&val));
+    }
+    return curr_hash;
+  }
+};
+}  // namespace std
+
+namespace bustub {
 /**
  * HashJoinExecutor executes a nested-loop JOIN on two tables.
  */

@@ -50,33 +50,28 @@ bool HashJoinExecutor::Next(Tuple *tuple, RID *rid) {
   auto left_plan = plan_->GetLeftPlan();
   Tuple right_tuple;
   RID right_rid;
+  // right_child_->Init();
   while (right_child_->Next(&right_tuple, &right_rid)) {
     HashJoinKey right_join_key;
     right_join_key.val_ = plan_->RightJoinKeyExpression()->Evaluate(&right_tuple, right_plan->OutputSchema());
     if (ht_.count(right_join_key) != 0U) {
       if (!ht_.empty()) {
         Tuple left_tuple = ht_[right_join_key].back();
-        ht_[right_join_key].pop_back();
+        // ht_[right_join_key].pop_back();
         auto left_out_put_schema = left_plan->OutputSchema();
         auto right_out_put_schema = right_plan->OutputSchema();
         std::vector<Value> vals;
-        std::vector<Column> left_column = left_out_put_schema->GetColumns();
-        std::vector<Column> right_column = right_out_put_schema->GetColumns();
-        vals.resize(left_column.size() + right_column.size());
+        std::vector<Column> columns = plan_->OutputSchema()->GetColumns();
+        vals.resize(columns.size());
         size_t i = 0;
-        for (const auto &l_col : left_column) {
-          vals[i++] = left_tuple.GetValue(left_out_put_schema, left_out_put_schema->GetColIdx(l_col.GetName()));
-        }
-        for (const auto &r_col : right_column) {
-          vals[i++] = right_tuple.GetValue(right_out_put_schema, right_out_put_schema->GetColIdx(r_col.GetName()));
+        for (const auto &col : columns) {
+          vals[i++] = col.GetExpr()->EvaluateJoin(&left_tuple, left_out_put_schema, &right_tuple, right_out_put_schema);
         }
         left_tuple = Tuple(vals, plan_->OutputSchema());
         *tuple = left_tuple;
         *rid = left_tuple.GetRid();
         return true;
       }
-    } else {
-      return false;
     }
   }
   return false;
