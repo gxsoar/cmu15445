@@ -26,13 +26,13 @@ void UpdateExecutor::Init() {
   }
 }
 
-bool UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) { 
-  TableHeap* table_heap = table_info_->table_.get();
+bool UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
+  TableHeap *table_heap = table_info_->table_.get();
   auto indexs_info = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
   Tuple tmp_tuple;
   RID tmp_rid;
   Schema schema = table_info_->schema_;
-  while(child_executor_->Next(&tmp_tuple, &tmp_rid)) {
+  while (child_executor_->Next(&tmp_tuple, &tmp_rid)) {
     if (!table_heap->GetTuple(tmp_rid, &tmp_tuple, exec_ctx_->GetTransaction())) {
       return false;
     }

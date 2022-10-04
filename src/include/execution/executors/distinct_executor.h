@@ -13,9 +13,9 @@
 #pragma once
 
 #include <memory>
-#include <utility>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/distinct_plan.h"

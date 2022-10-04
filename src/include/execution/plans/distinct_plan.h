@@ -12,8 +12,10 @@
 
 #pragma once
 
-#include "execution/plans/abstract_plan.h"
+#include <vector>
+
 #include "common/util/hash_util.h"
+#include "execution/plans/abstract_plan.h"
 
 namespace bustub {
 
@@ -40,10 +42,10 @@ class DistinctPlanNode : public AbstractPlanNode {
 };
 
 struct DistinctKey {
-  std::vector<Value> vals;
+  std::vector<Value> vals_;
   bool operator==(const DistinctKey &other) const {
-    for (uint i = 0; i < other.vals.size(); ++ i) {
-      if (vals[i].CompareEquals(other.vals[i]) != CmpBool::CmpTrue) {
+    for (uint i = 0; i < other.vals_.size(); ++i) {
+      if (vals_[i].CompareEquals(other.vals_[i]) != CmpBool::CmpTrue) {
         return false;
       }
     }
@@ -54,11 +56,11 @@ struct DistinctKey {
 
 namespace std {
 
-template<>
+template <>
 struct hash<bustub::DistinctKey> {
-  std::size_t operator() (const bustub::DistinctKey &dist_key) const {
+  std::size_t operator()(const bustub::DistinctKey &dist_key) const {
     size_t curr_hash = 0;
-    auto vals = dist_key.vals;
+    auto vals = dist_key.vals_;
     for (const auto &val : vals) {
       if (!val.IsNull()) {
         curr_hash = bustub::HashUtil::CombineHashes(curr_hash, bustub::HashUtil::HashValue(&val));
@@ -67,4 +69,4 @@ struct hash<bustub::DistinctKey> {
     return curr_hash;
   }
 };
-} // namespace std
+}  // namespace std
