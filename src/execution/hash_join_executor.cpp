@@ -20,7 +20,9 @@ HashJoinExecutor::HashJoinExecutor(ExecutorContext *exec_ctx, const HashJoinPlan
     : AbstractExecutor(exec_ctx),
       plan_(plan),
       left_child_(std::move(left_child)),
-      right_child_(std::move(right_child)) {}
+      right_child_(std::move(right_child)) {
+  cur_idx_ = 0;
+}
 
 void HashJoinExecutor::Init() {
   // 在初始化阶段构建好hash_table
@@ -30,6 +32,7 @@ void HashJoinExecutor::Init() {
   if (right_child_) {
     right_child_->Init();
   }
+  cur_idx_ = 0;
   auto left_plan = plan_->GetLeftPlan();
   Tuple left_tuple;
   RID left_rid;
@@ -43,36 +46,37 @@ void HashJoinExecutor::Init() {
       ht_[left_join_key] = tmp;
     }
   }
-}
-
-bool HashJoinExecutor::Next(Tuple *tuple, RID *rid) {
   auto right_plan = plan_->GetRightPlan();
-  auto left_plan = plan_->GetLeftPlan();
+  auto plan_schema = plan_->OutputSchema();
   Tuple right_tuple;
   RID right_rid;
-  // right_child_->Init();
+  auto left_out_put_schema = left_plan->OutputSchema();
+  auto right_out_put_schema = right_plan->OutputSchema();
+  std::vector<Column> columns = plan_->OutputSchema()->GetColumns();
   while (right_child_->Next(&right_tuple, &right_rid)) {
     HashJoinKey right_join_key;
     right_join_key.val_ = plan_->RightJoinKeyExpression()->Evaluate(&right_tuple, right_plan->OutputSchema());
     if (ht_.count(right_join_key) != 0U) {
       if (!ht_.empty()) {
-        Tuple left_tuple = ht_[right_join_key].back();
-        // ht_[right_join_key].pop_back();
-        auto left_out_put_schema = left_plan->OutputSchema();
-        auto right_out_put_schema = right_plan->OutputSchema();
-        std::vector<Value> vals;
-        std::vector<Column> columns = plan_->OutputSchema()->GetColumns();
-        vals.resize(columns.size());
-        size_t i = 0;
-        for (const auto &col : columns) {
-          vals[i++] = col.GetExpr()->EvaluateJoin(&left_tuple, left_out_put_schema, &right_tuple, right_out_put_schema);
+        auto left_tuple_sets = ht_[right_join_key];
+        for (const auto &lt : left_tuple_sets) {
+          std::vector<Value> vals;
+          vals.resize(columns.size());
+          size_t i = 0;
+          for (const auto &col : columns) {
+            vals[i++] = col.GetExpr()->EvaluateJoin(&lt, left_out_put_schema, &right_tuple, right_out_put_schema);
+          }
+          result_set_.emplace_back(Tuple(vals, plan_schema));
         }
-        left_tuple = Tuple(vals, plan_->OutputSchema());
-        *tuple = left_tuple;
-        *rid = left_tuple.GetRid();
-        return true;
       }
     }
+  }
+}
+
+bool HashJoinExecutor::Next(Tuple *tuple, RID *rid) {
+  if (cur_idx_ < result_set_.size()) {
+    *tuple = result_set_[cur_idx_++];
+    return true;
   }
   return false;
 }
