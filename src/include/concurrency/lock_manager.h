@@ -24,6 +24,7 @@
 #include "common/config.h"
 #include "common/rid.h"
 #include "concurrency/transaction.h"
+#include "concurrency/transaction_manager.h"
 
 namespace bustub {
 
@@ -104,11 +105,14 @@ class LockManager {
    */
   bool Unlock(Transaction *txn, const RID &rid);
 
+  bool CanLock(Transaction *txn, LockMode mode);
+
  private:
   std::mutex latch_;
 
   /** Lock table for lock requests. */
   std::unordered_map<RID, LockRequestQueue> lock_table_;
+
 };
 
 }  // namespace bustub
