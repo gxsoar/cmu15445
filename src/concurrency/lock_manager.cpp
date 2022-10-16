@@ -28,14 +28,13 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
   if (!CanLock(txn, LockMode::SHARED)) {
     return false;
   }
-  if (lock_table_[rid].request_queue_.empty()) {
+  std::unique_lock<std::mutex> ulock(latch_);
+  auto &rq = lock_table_[rid].request_queue_;
+  if (rq.empty()) {
     txn_request.granted_ = true;
-    lock_table_[rid].request_queue_.push_back(txn_request);
+    rq.push_back(txn_request);
   } else {
-    std::unique_lock<std::mutex> ulock(latch_);
     auto check = [&]() -> bool {
-      auto rq = lock_table_[rid].request_queue_;
-      size_t rq_size = rq.size();
       size_t cnt_shared = 0;
       for (auto ite = rq.begin(); ite != rq.end(); ++ ite) {
         if (txn->GetTransactionId() == ite->txn_id_) {
@@ -49,27 +48,62 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
             txn_request.granted_ = true;
             rq.push_back(txn_request);
             lock_table_[rid].cv_.notify_all();
-            txn->SetState(TransactionState::GROWING);
             return true;
           }
         } else {
           cnt_shared++;
         }
       }
-      return cnt_shared == rq_size;
+      return cnt_shared == rq.size();
     };
     while(txn->GetState() != TransactionState::ABORTED && !check()) {
       lock_table_[rid].cv_.wait(ulock);
     }
-    if (txn->GetState() == TransactionState::ABORTED) {
-      return false;
-    }
   }
+  if (txn->GetState() == TransactionState::ABORTED) {
+    return false;
+  }
+  txn->SetState(TransactionState::GROWING);
   txn->GetSharedLockSet()->emplace(rid);
   return true;
 }
 
 bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
+  if (txn->IsExclusiveLocked(rid)) {
+    return true;
+  }
+  if (!CanLock(txn, LockMode::EXCLUSIVE)) {
+    return false;
+  }
+  LockRequest txn_request(txn->GetTransactionId(), LockMode::EXCLUSIVE);
+  std::unique_lock<std::mutex> ulock(latch_);
+  auto &rq = lock_table_[rid].request_queue_;
+  if (rq.empty()) {
+    txn_request.granted_ = true;
+    rq.push_back(txn_request);
+  } else {
+      std::function<bool()> check = [&]() -> bool {
+      for (auto ite = rq.begin(); ite != rq.end(); ++ ite) {
+        if (ite->txn_id_ > txn->GetTransactionId()) {
+          Transaction *young_txn = TransactionManager::GetTransaction(ite->txn_id_);
+          young_txn->SetState(TransactionState::ABORTED);
+          rq.erase(ite);
+          txn_request.granted_ = true;
+          rq.push_back(txn_request);
+          lock_table_[rid].cv_.notify_all();
+          return true;
+        }
+      }
+      return false;
+    };
+    while(txn->GetState() != TransactionState::ABORTED && !check()) {
+      lock_table_[rid].cv_.wait(ulock);
+    }
+  }
+  if (txn->GetState() == TransactionState::ABORTED) {
+    return false;
+  }
+  txn->SetState(TransactionState::GROWING);
   txn->GetExclusiveLockSet()->emplace(rid);
   return true;
 }
