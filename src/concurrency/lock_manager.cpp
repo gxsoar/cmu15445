@@ -30,10 +30,10 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
   }
   std::unique_lock<std::mutex> ulock(latch_);
   auto &rid_lock_rq = lock_table_[rid];
-  rid_lock_rq.request_queue_.push_back(txn_request);
+  auto &rq = lock_table_[rid].request_queue_;
+  rq.push_back(txn_request);
   auto check = [&]() -> bool {
     size_t cnt_shared = 0;
-    auto &rq = rid_lock_rq.request_queue_;
     for (auto ite = rq.begin(); ite != rq.end(); ++ ite) {
       if (ite->txn_id_ > txn->GetTransactionId()) {
         if (ite->granted_) {
@@ -62,6 +62,12 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
     lock_table_[rid].cv_.wait(ulock);
   }
   if (txn->GetState() == TransactionState::ABORTED) {
+    for (auto ite = rq.begin(); ite != rq.end(); ++ ite) {
+      if (ite->txn_id_ == txn->GetTransactionId()) {
+        rq.erase(ite);
+        break;
+      }
+    }
     return false;
   }
   for (auto &ite : rid_lock_rq.request_queue_) {
@@ -84,19 +90,59 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
   LockRequest txn_request(txn->GetTransactionId(), LockMode::EXCLUSIVE);
   std::unique_lock<std::mutex> ulock(latch_);
   auto &rq = lock_table_[rid].request_queue_;
-  rq.push_back(txn_request);
+  auto &rid_lock_rq = lock_table_[rid];
+  rq.push_front(txn_request);
   std::function<bool()> check = [&]() -> bool {
     if (rq.size() == 1) {
       return true;
     }
-    for (auto ite = rq.begin(); ite != rq.end(); ++ ite) {
-      if (ite->txn_id_ > txn->GetTransactionId()) {
+    // 先处理前面的排他锁请求
+    for (auto ite = rq.begin(); ite != rq.end();) {
+      if (ite->txn_id_ > txn->GetTransactionId() && ite->lock_mode_ == LockMode::EXCLUSIVE) {
         Transaction *young_txn = TransactionManager::GetTransaction(ite->txn_id_);
         young_txn->SetState(TransactionState::ABORTED);
-        rq.erase(ite);
-        txn_request.granted_ = true;
-        rq.push_back(txn_request);
-        lock_table_[rid].cv_.notify_all();
+        if (ite->granted_) {
+          rq.erase(ite);
+          rid_lock_rq.cv_.notify_all();
+          return true;
+        }
+        ite = rq.erase(ite); 
+      } else {
+        ++ ite;
+      }
+    }
+    // 在处理后面的共享锁请求
+    size_t cnt_shared = 0;
+    for (auto ite = rq.begin(); ite != rq.end(); ++ ite) {
+      if (ite->txn_id_ > txn->GetTransactionId() && ite->lock_mode_ == LockMode::SHARED) {
+        if (ite->granted_) {
+          cnt_shared++;
+        }
+      }
+    }
+    if (cnt_shared == 0) {
+      for (auto ite = rq.begin(); ite != rq.end();) {
+        if (ite->txn_id_ > txn->GetTransactionId() && ite->lock_mode_ == LockMode::SHARED) {
+          Transaction *young_txn = TransactionManager::GetTransaction(ite->txn_id_);
+          young_txn->SetState(TransactionState::ABORTED);
+          ite = rq.erase(ite);
+        } else {
+          ++ite;
+        }
+      }
+    } else {
+      for (auto ite = rq.begin(); ite != rq.end(); ) {
+        if (ite->txn_id_ > txn->GetTransactionId() && ite->lock_mode_ == LockMode::SHARED && ite->granted_) {
+          Transaction *young_txn = TransactionManager::GetTransaction(ite->txn_id_);
+          young_txn->SetState(TransactionState::ABORTED);
+          ite = rq.erase(ite);
+          cnt_shared--;
+        } else {
+          ++ite;
+        }
+      }
+      if (cnt_shared == 0) {
+        rid_lock_rq.cv_.notify_all();
         return true;
       }
     }
@@ -106,6 +152,12 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
     lock_table_[rid].cv_.wait(ulock);
   }
   if (txn->GetState() == TransactionState::ABORTED) {
+    for (auto ite = rq.begin(); ite != rq.end(); ++ ite) {
+      if (ite->txn_id_ == txn->GetTransactionId()) {
+        rq.erase(ite);
+        break;
+      }
+    }
     return false;
   }
   for (auto &ite : rq) {
@@ -119,6 +171,7 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
 }
 
 bool LockManager::LockUpgrade(Transaction *txn, const RID &rid) {
+
   txn->GetSharedLockSet()->erase(rid);
   txn->GetExclusiveLockSet()->emplace(rid);
   return true;
