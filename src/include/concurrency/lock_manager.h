@@ -24,7 +24,7 @@
 #include "common/config.h"
 #include "common/rid.h"
 #include "concurrency/transaction.h"
-#include "concurrency/transaction_manager.h"
+// #include "concurrency/transaction_manager.h"
 
 namespace bustub {
 
@@ -52,6 +52,10 @@ class LockManager {
     std::condition_variable cv_;
     // txn_id of an upgrading transaction (if any)
     txn_id_t upgrading_ = INVALID_TXN_ID;
+
+    // record the number of lockshared
+    size_t count_shared{0};
+    size_t count_exclusive{0};
   };
 
  public:
@@ -112,6 +116,8 @@ class LockManager {
 
   /** Lock table for lock requests. */
   std::unordered_map<RID, LockRequestQueue> lock_table_;
+
+  std::mutex mutex_;
 
 };
 

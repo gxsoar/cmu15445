@@ -8,6 +8,7 @@
 #include "common/config.h"
 #include "concurrency/lock_manager.h"
 #include "concurrency/transaction_manager.h"
+#include "concurrency/transaction.h"
 #include "gtest/gtest.h"
 
 namespace bustub {
@@ -77,7 +78,7 @@ void BasicTest1() {
     delete txns[i];
   }
 }
-TEST(LockManagerTest, DISABLED_BasicTest) { BasicTest1(); }
+TEST(LockManagerTest, BasicTest) { BasicTest1(); }
 
 void TwoPLTest() {
   LockManager lock_mgr{};
