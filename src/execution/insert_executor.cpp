@@ -29,6 +29,9 @@ void InsertExecutor::Init() {
 }
 
 bool InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
+  Transaction *txn = exec_ctx_->GetTransaction();
+  TransactionManager *txn_mgr = exec_ctx_->GetTransactionManager();
+  LockManager *lgr = exec_ctx_->GetLockManager();
   auto schema = table_info_->schema_;
   auto table_heap = table_info_->table_.get();
   if (plan_->IsRawInsert()) {
@@ -40,11 +43,22 @@ bool InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
       if (!table_heap->InsertTuple(tmp_tuple, &tmp_rid, exec_ctx_->GetTransaction())) {
         return false;
       }
+      if (!lgr->LockExclusive(txn, tmp_rid)) {
+        txn_mgr->Abort(txn);
+        return false;
+      }
+      TableWriteRecord twr(tmp_rid, WType::INSERT, tmp_tuple, table_heap);
+      txn->AppendTableWriteRecord(twr);
       for (auto &index_info : indexs_info_) {
         const auto index_key =
             tmp_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetKeyAttrs());
         index_info->index_->InsertEntry(index_key, tmp_rid, exec_ctx_->GetTransaction());
+        IndexWriteRecord iwr(tmp_rid, plan_->TableOid(), WType::INSERT, index_key, 
+                            index_info->index_oid_, exec_ctx_->GetCatalog());
+        txn->AppendTableWriteRecord(iwr);
       }
+      
+      
     }
     return false;
   }
@@ -55,9 +69,18 @@ bool InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
     if (!table_heap->InsertTuple(tmp_tuple, &tmp_rid, exec_ctx_->GetTransaction())) {
       return false;
     }
+    if (!lgr->LockExclusive(txn, tmp_rid)) {
+        txn_mgr->Abort(txn);
+        return false;
+      }
+    TableWriteRecord twr(tmp_rid, WType::INSERT, tmp_tuple, table_heap);
+    txn->AppendTableWriteRecord(twr);
     for (const auto &index_info : indexs_info_) {
       const auto index_key = tmp_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetKeyAttrs());
       index_info->index_->InsertEntry(index_key, tmp_rid, exec_ctx_->GetTransaction());
+      IndexWriteRecord iwr(tmp_rid, plan_->TableOid(), WType::INSERT, index_key, 
+                            index_info->index_oid_, exec_ctx_->GetCatalog());
+      txn->AppendTableWriteRecord(iwr);
     }
   }
   return false;

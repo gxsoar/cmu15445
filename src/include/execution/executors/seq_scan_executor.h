@@ -21,6 +21,9 @@
 #include "storage/table/table_heap.h"
 #include "storage/table/table_iterator.h"
 #include "storage/table/tuple.h"
+#include "concurrency/lock_manager.h"
+#include "concurrency/transaction.h"
+#include "concurrency/transaction_manager.h"
 
 namespace bustub {
 

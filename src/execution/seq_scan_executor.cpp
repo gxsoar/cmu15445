@@ -25,6 +25,9 @@ void SeqScanExecutor::Init() {
 }
 
 bool SeqScanExecutor::Next(Tuple *tuple, RID *rid) {
+  Transaction *txn = exec_ctx_->GetTransaction();
+  TransactionManager *txn_mgr = exec_ctx_->GetTransactionManager();
+  LockManager *lgr = exec_ctx_->GetLockManager();
   auto the_end = table_info_->table_->End();
   auto table_schema = table_info_->schema_;
   auto predicate = plan_->GetPredicate();
@@ -34,6 +37,10 @@ bool SeqScanExecutor::Next(Tuple *tuple, RID *rid) {
   while (table_iter_ != the_end) {
     tmp_tuple = *table_iter_++;
     tmp_rid = tmp_tuple.GetRid();
+    if (!lgr->LockShared(txn, tmp_rid)) {
+      txn_mgr->Abort(txn);
+      return false;
+    }
     // predicate在数据库中一般用于where, in, 等用来判断对应的值where后面的值是否存在, 如果不存在这些则predicate为空
     if (predicate == nullptr || predicate->Evaluate(&tmp_tuple, &table_schema).GetAs<bool>()) {
       const auto columns = out_put_schema->GetColumns();
@@ -46,6 +53,12 @@ bool SeqScanExecutor::Next(Tuple *tuple, RID *rid) {
       Tuple new_tuple(tmp_value, out_put_schema);
       *tuple = new_tuple;
       *rid = tmp_rid;
+      if (txn->GetIsolationLevel() == IsolationLevel::READ_COMMITTED) {
+        if (!lgr->Unlock(txn, tmp_rid)) {
+          txn_mgr->Abort(txn);
+          return false;
+        }
+      } 
       return true;
     }
   }

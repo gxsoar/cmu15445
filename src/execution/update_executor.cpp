@@ -27,12 +27,27 @@ void UpdateExecutor::Init() {
 }
 
 bool UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
+  Transaction *txn = exec_ctx_->GetTransaction();
+  TransactionManager *txn_mgr = exec_ctx_->GetTransactionManager();
+  LockManager *lgr = exec_ctx_->GetLockManager();
   TableHeap *table_heap = table_info_->table_.get();
   auto indexs_info = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
   Tuple tmp_tuple;
   RID tmp_rid;
   Schema schema = table_info_->schema_;
   while (child_executor_->Next(&tmp_tuple, &tmp_rid)) {
+    if (txn->IsSharedLocked(tmp_rid)) {
+      if (!lgr->LockUpgrade(txn, tmp_rid)) {
+        txn_mgr->Abort(txn);
+        return false;
+      }
+    }
+    if (!txn->IsExclusiveLocked(tmp_rid)) {
+      if (!lgr->LockExclusive(txn, tmp_rid)) {
+        txn_mgr->Abort(txn);
+        return false;
+      }
+    }
     if (!table_heap->GetTuple(tmp_rid, &tmp_tuple, exec_ctx_->GetTransaction())) {
       return false;
     }
@@ -42,10 +57,17 @@ bool UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
       for (auto &index_info : indexs_info) {
         auto old_index_key = tmp_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetKeyAttrs());
         index_info->index_->DeleteEntry(old_index_key, tmp_rid, exec_ctx_->GetTransaction());
+        IndexWriteRecord old_iwr(tmp_rid, plan_->TableOid(), WType::UPDATE, old_index_key, index_info->index_oid_, exec_ctx_->GetCatalog());
+        auto idx_wrt_set = txn->GetIndexWriteSet();
+        auto old_ite = std::find(idx_wrt_set->begin(), idx_wrt_set->end(), old_iwr);
+        idx_wrt_set->erase(old_ite);
         auto new_index_key = new_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetKeyAttrs());
         index_info->index_->InsertEntry(new_index_key, new_rid, exec_ctx_->GetTransaction());
+        IndexWriteRecord new_iwr(tmp_rid, plan_->TableOid(), WType::UPDATE, new_index_key, index_info->index_oid_, exec_ctx_->GetCatalog());
+        idx_wrt_set->push_back(new_iwr);
       }
     }
+    
   }
   return false;
 }

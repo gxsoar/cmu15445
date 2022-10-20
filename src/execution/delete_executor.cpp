@@ -34,7 +34,20 @@ bool DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
   RID tmp_rid;
   Schema schema = table_info_->schema_;
   Transaction *txn = GetExecutorContext()->GetTransaction();
+  TransactionManager *txn_mgr = exec_ctx_->GetTransactionManager();
+  LockManager *lgr = exec_ctx_->GetLockManager();
   while (child_executor_->Next(&tmp_tuple, &tmp_rid)) {
+    if (txn->IsSharedLocked(tmp_rid)) {
+      if (!lgr->LockUpgrade(txn, tmp_rid)) {
+        return false;
+      }
+    }
+    if (!txn->IsExclusiveLocked(tmp_rid)) {
+      if (!lgr->LockExclusive(txn, tmp_rid)) {
+        txn_mgr->Abort(txn);
+        return false;
+      }
+    }
     if (!table_heap->MarkDelete(tmp_rid, txn)) {
       return false;
     }
@@ -42,6 +55,12 @@ bool DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
       Tuple index_key =
           tmp_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetMetadata()->GetKeyAttrs());
       index_info->index_->DeleteEntry(index_key, tmp_rid, txn);
+      IndexWriteRecord old_iwr(tmp_rid, plan_->TableOid(), WType::DELETE, index_key, index_info->index_oid_, exec_ctx_->GetCatalog());
+      auto idx_wrt_set = txn->GetIndexWriteSet();
+      auto ite = std::find(idx_wrt_set->begin(), idx_wrt_set->end(), old_iwr);
+      if (ite != idx_wrt_set->end()) {
+        idx_wrt_set->erase(ite);
+      }
     }
   }
   return false;

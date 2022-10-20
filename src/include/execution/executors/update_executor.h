@@ -21,6 +21,9 @@
 #include "execution/plans/update_plan.h"
 #include "storage/table/tuple.h"
 #include "type/value_factory.h"
+#include "concurrency/lock_manager.h"
+#include "concurrency/transaction.h"
+#include "concurrency/transaction_manager.h"
 
 namespace bustub {
 

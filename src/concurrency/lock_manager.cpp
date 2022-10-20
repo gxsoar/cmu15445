@@ -20,7 +20,6 @@ namespace bustub {
 
 bool LockManager::LockShared(Transaction *txn, const RID &rid) {
   std::lock_guard<std::mutex> lock(latch_);
-  // std::unique_lock<std::mutex> ulock(latch_);
   LockRequest txn_request(txn->GetTransactionId(), LockMode::SHARED);
   // txn has locked rid
   if (txn->IsSharedLocked(rid)) {
@@ -81,7 +80,6 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
       ite.granted_ = true;
     }
   }
-  // LOG_INFO("rq.size() = %ld\n", rid_lock_rq.request_queue_.size());
   txn->SetState(TransactionState::GROWING);
   txn->GetSharedLockSet()->emplace(rid);
   return true;
@@ -96,7 +94,6 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
   }
   LockRequest txn_request(txn->GetTransactionId(), LockMode::EXCLUSIVE);
   std::lock_guard<std::mutex> lock(latch_);
-  // std::unique_lock<std::mutex> ulock(latch_);
   auto &rq = lock_table_[rid].request_queue_;
   auto &rid_lock_rq = lock_table_[rid];
   rq.push_front(txn_request);
@@ -104,7 +101,6 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
     if (rq.size() == 1) {
       return true;
     }
-    // LOG_INFO("rq.size() = %lu\n", rq.size());
     // 先处理前面的排他锁请求
     for (auto ite = rq.begin(); ite != rq.end();) {
       if (ite->txn_id_ > txn->GetTransactionId() && ite->lock_mode_ == LockMode::EXCLUSIVE) {
@@ -156,7 +152,6 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
         return true;
       }
     }
-    // LOG_INFO("deadlock!!!\n");
     return false;
   };
   std::unique_lock<std::mutex> ulock(rid_lock_rq.mutex_);
@@ -188,16 +183,13 @@ bool LockManager::LockUpgrade(Transaction *txn, const RID &rid) {
   }
   auto &rid_lock_rq = lock_table_[rid];
   auto &rq = rid_lock_rq.request_queue_;
-  // LOG_INFO("shared_size = %lu exclusive_size = %lu rq size = %lu\n",txn->GetSharedLockSet()->size(), txn->GetExclusiveLockSet()->size(), lock_table_[rid].request_queue_.size());
   for (auto ite = rq.begin(); ite != rq.end(); ) {
     if (ite->txn_id_ == txn->GetTransactionId()) {
       ite = rq.erase(ite);
     } else ++ite;
   }
-  // LOG_INFO("rq size = %lu\n", lock_table_[rid].request_queue_.size());
   txn->GetSharedLockSet()->erase(rid);
   bool ans = LockExclusive(txn, rid);
-  // txn->GetExclusiveLockSet()->emplace(rid);
   return ans;
 }
 
@@ -206,10 +198,11 @@ bool LockManager::Unlock(Transaction *txn, const RID &rid) {
   if (txn->GetState() == TransactionState::ABORTED) {
     txn->GetExclusiveLockSet()->erase(rid);
     txn->GetSharedLockSet()->erase(rid);
-    for (auto ite = lock_table_[rid].request_queue_.begin(); ite != lock_table_[rid].request_queue_.end();++ ite) {
+    for (auto ite = lock_table_[rid].request_queue_.begin(); ite != lock_table_[rid].request_queue_.end();) {
       if (ite->txn_id_ == txn->GetTransactionId()) {
-        lock_table_[rid].request_queue_.erase(ite);
-        break;
+        ite = lock_table_[rid].request_queue_.erase(ite);
+      } else {
+        ++ ite;
       }
     }
     return false;
@@ -229,7 +222,6 @@ bool LockManager::Unlock(Transaction *txn, const RID &rid) {
     for (auto ite = lock_table_[rid].request_queue_.begin(); ite != lock_table_[rid].request_queue_.end();) {
       if (ite->txn_id_ == txn->GetTransactionId()) {
         ite = lock_table_[rid].request_queue_.erase(ite);
-        break;
       } else {
         ++ ite;
       }
@@ -238,8 +230,6 @@ bool LockManager::Unlock(Transaction *txn, const RID &rid) {
     return true;
   }
   return false;
-  
-  // return true;
 }
 
 bool LockManager::CanLock(Transaction *txn, LockMode mode) {
