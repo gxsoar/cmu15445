@@ -53,9 +53,6 @@ class LockManager {
     // txn_id of an upgrading transaction (if any)
     txn_id_t upgrading_ = INVALID_TXN_ID;
     std::mutex mutex_;
-    // record the number of lockshared
-    size_t count_shared{0};
-    size_t count_exclusive{0};
   };
 
  public:
@@ -116,8 +113,6 @@ class LockManager {
 
   /** Lock table for lock requests. */
   std::unordered_map<RID, LockRequestQueue> lock_table_;
-
-
 };
 
 }  // namespace bustub

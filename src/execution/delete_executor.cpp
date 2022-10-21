@@ -55,7 +55,8 @@ bool DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
       Tuple index_key =
           tmp_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetMetadata()->GetKeyAttrs());
       index_info->index_->DeleteEntry(index_key, tmp_rid, txn);
-      IndexWriteRecord old_iwr(tmp_rid, plan_->TableOid(), WType::DELETE, tmp_tuple, index_info->index_oid_, exec_ctx_->GetCatalog());
+      IndexWriteRecord old_iwr(tmp_rid, plan_->TableOid(), WType::DELETE, tmp_tuple, index_info->index_oid_,
+                               exec_ctx_->GetCatalog());
       txn->AppendTableWriteRecord(old_iwr);
     }
   }

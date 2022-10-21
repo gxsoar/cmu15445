@@ -59,12 +59,12 @@ bool UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
         index_info->index_->DeleteEntry(old_index_key, tmp_rid, exec_ctx_->GetTransaction());
         auto new_index_key = new_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetKeyAttrs());
         index_info->index_->InsertEntry(new_index_key, new_rid, exec_ctx_->GetTransaction());
-        IndexWriteRecord new_iwr(tmp_rid, plan_->TableOid(), WType::UPDATE, new_tuple ,index_info->index_oid_, exec_ctx_->GetCatalog());
+        IndexWriteRecord new_iwr(tmp_rid, plan_->TableOid(), WType::UPDATE, new_tuple, index_info->index_oid_,
+                                 exec_ctx_->GetCatalog());
         new_iwr.old_tuple_ = tmp_tuple;
         txn->AppendTableWriteRecord(new_iwr);
       }
     }
-    
   }
   return false;
 }

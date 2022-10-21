@@ -162,7 +162,7 @@ void CheckTxnLockSize(Transaction *txn, size_t shared_size, size_t exclusive_siz
 }
 
 // NOLINTNEXTLINE
-TEST_F(TransactionTest, SimpleInsertRollbackTest) {
+TEST_F(TransactionTest, DISABLED_SimpleInsertRollbackTest) {
   // txn1: INSERT INTO empty_table2 VALUES (200, 20), (201, 21), (202, 22)
   // txn1: abort
   // txn2: SELECT * FROM empty_table2;
@@ -192,6 +192,7 @@ TEST_F(TransactionTest, SimpleInsertRollbackTest) {
   SeqScanPlanNode scan_plan{out_schema, nullptr, table_info->oid_};
 
   std::vector<Tuple> result_set;
+  // TableIterator ite(exec_ctx2->GetCatalog()->GetTable(table_info->oid_)->table_->Begin(txn2));
   GetExecutionEngine()->Execute(&scan_plan, &result_set, txn2, exec_ctx2.get());
 
   // Size
@@ -203,7 +204,7 @@ TEST_F(TransactionTest, SimpleInsertRollbackTest) {
 }
 
 // NOLINTNEXTLINE
-TEST_F(TransactionTest, DISABLED_DirtyReadsTest) {
+TEST_F(TransactionTest, DirtyReadsTest) {
   // txn1: INSERT INTO empty_table2 VALUES (200, 20), (201, 21), (202, 22)
   // txn2: SELECT * FROM empty_table2;
   // txn1: abort

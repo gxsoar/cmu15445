@@ -58,7 +58,7 @@ bool SeqScanExecutor::Next(Tuple *tuple, RID *rid) {
           txn_mgr->Abort(txn);
           return false;
         }
-      } 
+      }
       return true;
     }
   }
