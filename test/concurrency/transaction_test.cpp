@@ -176,8 +176,9 @@ TEST_F(TransactionTest, SimpleInsertRollbackTest) {
   // Create insert plan node
   auto table_info = exec_ctx1->GetCatalog()->GetTable("empty_table2");
   InsertPlanNode insert_plan{std::move(raw_vals), table_info->oid_};
-
+  // LOG_INFO("txn1 old size = %lu\n", txn1->GetWriteSet()->size());
   GetExecutionEngine()->Execute(&insert_plan, nullptr, txn1, exec_ctx1.get());
+  // LOG_INFO("txn1 new size = %lu\n", txn1->GetWriteSet()->size());
   GetTxnManager()->Abort(txn1);
   delete txn1;
 

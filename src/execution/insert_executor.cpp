@@ -47,8 +47,6 @@ bool InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
         txn_mgr->Abort(txn);
         return false;
       }
-      TableWriteRecord twr(tmp_rid, WType::INSERT, tmp_tuple, table_heap);
-      txn->AppendTableWriteRecord(twr);
       for (auto &index_info : indexs_info_) {
         const auto index_key =
             tmp_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetKeyAttrs());
@@ -72,9 +70,7 @@ bool InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
     if (!lgr->LockExclusive(txn, tmp_rid)) {
         txn_mgr->Abort(txn);
         return false;
-      }
-    TableWriteRecord twr(tmp_rid, WType::INSERT, tmp_tuple, table_heap);
-    txn->AppendTableWriteRecord(twr);
+    }
     for (const auto &index_info : indexs_info_) {
       const auto index_key = tmp_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetKeyAttrs());
       index_info->index_->InsertEntry(index_key, tmp_rid, exec_ctx_->GetTransaction());

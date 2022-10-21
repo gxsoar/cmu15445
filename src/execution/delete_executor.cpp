@@ -51,8 +51,6 @@ bool DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
     if (!table_heap->MarkDelete(tmp_rid, txn)) {
       return false;
     }
-    TableWriteRecord twr(tmp_rid, WType::DELETE, tmp_tuple, table_heap);
-    txn->AppendTableWriteRecord(twr);
     for (auto &index_info : index_info_set_) {
       Tuple index_key =
           tmp_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetMetadata()->GetKeyAttrs());

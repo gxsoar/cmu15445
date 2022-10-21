@@ -51,8 +51,6 @@ bool UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
     if (!table_heap->GetTuple(tmp_rid, &tmp_tuple, exec_ctx_->GetTransaction())) {
       return false;
     }
-    TableWriteRecord twr(tmp_rid, WType::UPDATE, tmp_tuple, table_heap);
-    txn->AppendTableWriteRecord(twr);
     Tuple new_tuple = GenerateUpdatedTuple(tmp_tuple);
     if (table_heap->UpdateTuple(new_tuple, tmp_rid, exec_ctx_->GetTransaction())) {
       RID new_rid = tmp_rid;
