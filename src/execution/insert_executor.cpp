@@ -53,7 +53,7 @@ bool InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
         const auto index_key =
             tmp_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetKeyAttrs());
         index_info->index_->InsertEntry(index_key, tmp_rid, exec_ctx_->GetTransaction());
-        IndexWriteRecord iwr(tmp_rid, plan_->TableOid(), WType::INSERT, index_key, 
+        IndexWriteRecord iwr(tmp_rid, plan_->TableOid(), WType::INSERT, tmp_tuple, 
                             index_info->index_oid_, exec_ctx_->GetCatalog());
         txn->AppendTableWriteRecord(iwr);
       }
@@ -78,7 +78,7 @@ bool InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
     for (const auto &index_info : indexs_info_) {
       const auto index_key = tmp_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetKeyAttrs());
       index_info->index_->InsertEntry(index_key, tmp_rid, exec_ctx_->GetTransaction());
-      IndexWriteRecord iwr(tmp_rid, plan_->TableOid(), WType::INSERT, index_key, 
+      IndexWriteRecord iwr(tmp_rid, plan_->TableOid(), WType::INSERT, tmp_tuple, 
                             index_info->index_oid_, exec_ctx_->GetCatalog());
       txn->AppendTableWriteRecord(iwr);
     }

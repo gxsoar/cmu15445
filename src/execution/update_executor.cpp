@@ -51,20 +51,19 @@ bool UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
     if (!table_heap->GetTuple(tmp_rid, &tmp_tuple, exec_ctx_->GetTransaction())) {
       return false;
     }
+    TableWriteRecord twr(tmp_rid, WType::UPDATE, tmp_tuple, table_heap);
+    txn->AppendTableWriteRecord(twr);
     Tuple new_tuple = GenerateUpdatedTuple(tmp_tuple);
     if (table_heap->UpdateTuple(new_tuple, tmp_rid, exec_ctx_->GetTransaction())) {
       RID new_rid = tmp_rid;
       for (auto &index_info : indexs_info) {
         auto old_index_key = tmp_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetKeyAttrs());
         index_info->index_->DeleteEntry(old_index_key, tmp_rid, exec_ctx_->GetTransaction());
-        IndexWriteRecord old_iwr(tmp_rid, plan_->TableOid(), WType::UPDATE, old_index_key, index_info->index_oid_, exec_ctx_->GetCatalog());
-        auto idx_wrt_set = txn->GetIndexWriteSet();
-        auto old_ite = std::find(idx_wrt_set->begin(), idx_wrt_set->end(), old_iwr);
-        idx_wrt_set->erase(old_ite);
         auto new_index_key = new_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetKeyAttrs());
         index_info->index_->InsertEntry(new_index_key, new_rid, exec_ctx_->GetTransaction());
-        IndexWriteRecord new_iwr(tmp_rid, plan_->TableOid(), WType::UPDATE, new_index_key, index_info->index_oid_, exec_ctx_->GetCatalog());
-        idx_wrt_set->push_back(new_iwr);
+        IndexWriteRecord new_iwr(tmp_rid, plan_->TableOid(), WType::UPDATE, new_tuple ,index_info->index_oid_, exec_ctx_->GetCatalog());
+        new_iwr.old_tuple_ = tmp_tuple;
+        txn->AppendTableWriteRecord(new_iwr);
       }
     }
     

@@ -51,16 +51,14 @@ bool DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
     if (!table_heap->MarkDelete(tmp_rid, txn)) {
       return false;
     }
+    TableWriteRecord twr(tmp_rid, WType::DELETE, tmp_tuple, table_heap);
+    txn->AppendTableWriteRecord(twr);
     for (auto &index_info : index_info_set_) {
       Tuple index_key =
           tmp_tuple.KeyFromTuple(schema, index_info->key_schema_, index_info->index_->GetMetadata()->GetKeyAttrs());
       index_info->index_->DeleteEntry(index_key, tmp_rid, txn);
-      IndexWriteRecord old_iwr(tmp_rid, plan_->TableOid(), WType::DELETE, index_key, index_info->index_oid_, exec_ctx_->GetCatalog());
-      auto idx_wrt_set = txn->GetIndexWriteSet();
-      auto ite = std::find(idx_wrt_set->begin(), idx_wrt_set->end(), old_iwr);
-      if (ite != idx_wrt_set->end()) {
-        idx_wrt_set->erase(ite);
-      }
+      IndexWriteRecord old_iwr(tmp_rid, plan_->TableOid(), WType::DELETE, tmp_tuple, index_info->index_oid_, exec_ctx_->GetCatalog());
+      txn->AppendTableWriteRecord(old_iwr);
     }
   }
   return false;
