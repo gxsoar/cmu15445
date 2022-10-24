@@ -46,12 +46,10 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
           Transaction *young_txn = TransactionManager::GetTransaction(ite->txn_id_);
           young_txn->SetState(TransactionState::ABORTED);
           ite = rq.erase(ite);
+        } else {
+          ++ite;
         }
-        else {
-          ++ ite;
-        }
-      } 
-      else {
+      } else {
         if (ite->lock_mode_ == LockMode::EXCLUSIVE && ite->granted_) {
           // txn->SetState(TransactionState::ABORTED);
           rid_lock_rq.cv_.notify_all();
@@ -105,7 +103,7 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
       return true;
     }
     // 如果前面有更老的事务占据锁
-    for (auto ite = rq.begin(); ite != rq.end(); ++ ite) {
+    for (auto ite = rq.begin(); ite != rq.end(); ++ite) {
       if (ite->txn_id_ < txn->GetTransactionId() && ite->granted_) {
         // txn->SetState(TransactionState::ABORTED);
         rid_lock_rq.cv_.notify_all();

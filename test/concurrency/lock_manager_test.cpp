@@ -122,7 +122,7 @@ void WoundWaitBasicTest() {
   CheckGrowing(&txn);
   txn_mgr.Commit(&txn);
   CheckCommitted(&txn);
-  
+
   for (size_t i = 0; i < num_kill; i++) {
     kill_threads[i].join();
   }
