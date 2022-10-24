@@ -20,9 +20,7 @@
 namespace bustub {
 
 bool LockManager::LockShared(Transaction *txn, const RID &rid) {
-  // std::lock_guard<std::mutex> lock(latch_);
   LockRequest txn_request(txn->GetTransactionId(), LockMode::SHARED);
-  // txn has locked rid
   if (txn->IsSharedLocked(rid)) {
     return true;
   }
