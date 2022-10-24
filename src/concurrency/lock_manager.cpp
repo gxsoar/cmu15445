@@ -51,7 +51,6 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
         }
       } else {
         if (ite->lock_mode_ == LockMode::EXCLUSIVE && ite->granted_) {
-          txn->SetState(TransactionState::ABORTED);
           rid_lock_rq.cv_.notify_all();
           return false;
         }
