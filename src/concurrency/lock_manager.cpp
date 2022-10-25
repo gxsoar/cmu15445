@@ -20,6 +20,7 @@
 namespace bustub {
 
 bool LockManager::LockShared(Transaction *txn, const RID &rid) {
+  std::unique_lock<std::mutex> ulock(latch_);
   LockRequest txn_request(txn->GetTransactionId(), LockMode::SHARED);
   if (txn->IsSharedLocked(rid)) {
     return true;
@@ -31,25 +32,25 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
   auto &rq = lock_table_[rid].request_queue_;
   rq.push_back(txn_request);
   auto check = [&]() -> bool {
+    if (rq.size() == 1) {
+      return true;
+    }
     for (auto ite = rq.begin(); ite != rq.end();) {
       if (ite->txn_id_ > txn->GetTransactionId()) {
         if (ite->lock_mode_ == LockMode::EXCLUSIVE) {
+          Transaction *young_txn = TransactionManager::GetTransaction(ite->txn_id_);
+          young_txn->SetState(TransactionState::ABORTED);
           if (ite->granted_) {
-            Transaction *young_txn = TransactionManager::GetTransaction(ite->txn_id_);
-            young_txn->SetState(TransactionState::ABORTED);
             rq.erase(ite);
             rid_lock_rq.cv_.notify_all();
             return true;
           }
-          Transaction *young_txn = TransactionManager::GetTransaction(ite->txn_id_);
-          young_txn->SetState(TransactionState::ABORTED);
           ite = rq.erase(ite);
         } else {
           ++ite;
         }
       } else {
         if (ite->lock_mode_ == LockMode::EXCLUSIVE && ite->granted_) {
-          rid_lock_rq.cv_.notify_all();
           return false;
         }
         ++ite;
@@ -58,19 +59,19 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
     rid_lock_rq.cv_.notify_all();
     return true;
   };
-  std::unique_lock<std::mutex> ulock(rid_lock_rq.mutex_);
   while (txn->GetState() != TransactionState::ABORTED && !check()) {
-    lock_table_[rid].cv_.wait(ulock);
     if (txn->GetState() == TransactionState::ABORTED) {
-      for (auto ite = rq.begin(); ite != rq.end(); ++ite) {
+      for (auto ite = rq.begin(); ite != rq.end();) {
         if (ite->txn_id_ == txn->GetTransactionId()) {
-          rq.erase(ite);
-          break;
+          ite = rq.erase(ite);
+        } else {
+          ++ite;
         }
       }
       rid_lock_rq.cv_.notify_all();
       return false;
     }
+    lock_table_[rid].cv_.wait(ulock);
   }
   for (auto &ite : rid_lock_rq.request_queue_) {
     if (ite.txn_id_ == txn->GetTransactionId()) {
@@ -83,6 +84,7 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
 }
 
 bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
+  std::unique_lock<std::mutex> ulock(latch_);
   if (txn->IsExclusiveLocked(rid)) {
     return true;
   }
@@ -90,24 +92,19 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
     return false;
   }
   LockRequest txn_request(txn->GetTransactionId(), LockMode::EXCLUSIVE);
-  // std::lock_guard<std::mutex> lock(latch_);
   auto &rq = lock_table_[rid].request_queue_;
   auto &rid_lock_rq = lock_table_[rid];
   rq.push_front(txn_request);
   auto check = [&]() -> bool {
     if (rq.size() == 1) {
-      // rid_lock_rq.cv_.notify_all();
       return true;
     }
-    // 如果前面有更老的事务占据锁
-    for (auto ite = rq.begin(); ite != rq.end(); ++ite) {
-      if (ite->txn_id_ < txn->GetTransactionId() && ite->granted_) {
-        // txn->SetState(TransactionState::ABORTED);
-        rid_lock_rq.cv_.notify_all();
+    for (auto &ite : rq) {
+      if (ite.lock_mode_ == LockMode::EXCLUSIVE && ite.txn_id_ < txn->GetTransactionId() && ite.granted_) {
+        txn->SetState(TransactionState::ABORTED);
         return false;
       }
     }
-    // 先处理前面的排他锁请求
     for (auto ite = rq.begin(); ite != rq.end();) {
       if (ite->txn_id_ > txn->GetTransactionId() && ite->lock_mode_ == LockMode::EXCLUSIVE) {
         Transaction *young_txn = TransactionManager::GetTransaction(ite->txn_id_);
@@ -122,7 +119,6 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
         ++ite;
       }
     }
-    // 在处理后面的共享锁请求, 如果有多个较为年轻的共享锁占据一个tuple将这些共享锁终止掉
     size_t cnt_shared = 0;
     for (auto &ite : rq) {
       if (ite.txn_id_ > txn->GetTransactionId() && ite.lock_mode_ == LockMode::SHARED) {
@@ -132,7 +128,6 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
       }
     }
     if (cnt_shared == 0) {
-      // 将后面年轻的正在等待的共享锁的txn都给终止掉
       for (auto ite = rq.begin(); ite != rq.end();) {
         if (ite->txn_id_ > txn->GetTransactionId() && ite->lock_mode_ == LockMode::SHARED) {
           Transaction *young_txn = TransactionManager::GetTransaction(ite->txn_id_);
@@ -158,22 +153,20 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
         return true;
       }
     }
-    rid_lock_rq.cv_.notify_all();
     return false;
   };
-  std::unique_lock<std::mutex> ulock(rid_lock_rq.mutex_);
   while (txn->GetState() != TransactionState::ABORTED && !check()) {
-    lock_table_[rid].cv_.wait(ulock);
     if (txn->GetState() == TransactionState::ABORTED) {
-      for (auto ite = rq.begin(); ite != rq.end(); ++ite) {
+      for (auto ite = rq.begin(); ite != rq.end();) {
         if (ite->txn_id_ == txn->GetTransactionId()) {
-          rq.erase(ite);
-          break;
+          ite = rq.erase(ite);
+        } else {
+          ++ite;
         }
       }
-      rid_lock_rq.cv_.notify_all();
       return false;
     }
+    lock_table_[rid].cv_.wait(ulock);
   }
   for (auto &ite : rq) {
     if (ite.txn_id_ == txn->GetTransactionId()) {
@@ -186,6 +179,11 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
 }
 
 bool LockManager::LockUpgrade(Transaction *txn, const RID &rid) {
+  if (txn->GetState() != TransactionState::GROWING) {
+    TransactionAbortException e(txn->GetTransactionId(), AbortReason::UPGRADE_CONFLICT);
+    throw e;
+    return false;
+  }
   if (txn->IsExclusiveLocked(rid) || !txn->IsSharedLocked(rid)) {
     return true;
   }
@@ -209,7 +207,6 @@ bool LockManager::Unlock(Transaction *txn, const RID &rid) {
     for (auto ite = rq.begin(); ite != rq.end();) {
       if (ite->txn_id_ == txn->GetTransactionId()) {
         ite = rq.erase(ite);
-        continue;
       } else {
         ++ite;
       }
@@ -235,7 +232,6 @@ bool LockManager::Unlock(Transaction *txn, const RID &rid) {
     for (auto ite = rq.begin(); ite != rq.end();) {
       if (ite->txn_id_ == txn->GetTransactionId()) {
         ite = rq.erase(ite);
-        continue;
       } else {
         ++ite;
       }

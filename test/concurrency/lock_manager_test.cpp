@@ -11,16 +11,6 @@
 #include "concurrency/transaction_manager.h"
 #include "gtest/gtest.h"
 
-#define TEST_TIMEOUT_BEGIN                           \
-  std::promise<bool> promisedFinished;               \
-  auto futureResult = promisedFinished.get_future(); \
-                              std::thread([](std::promise<bool>& finished) {
-#define TEST_TIMEOUT_FAIL_END(X)                                                                  \
-  finished.set_value(true);                                                                       \
-  }, std::ref(promisedFinished)).detach();                                                        \
-  EXPECT_TRUE(futureResult.wait_for(std::chrono::milliseconds(X)) != std::future_status::timeout) \
-      << "Test Failed Due to Time Out";
-
 namespace bustub {
 
 // --- Helper functions ---
@@ -33,7 +23,6 @@ void CheckAborted(Transaction *txn) { EXPECT_EQ(txn->GetState(), TransactionStat
 void CheckCommitted(Transaction *txn) { EXPECT_EQ(txn->GetState(), TransactionState::COMMITTED); }
 
 void CheckTxnLockSize(Transaction *txn, size_t shared_size, size_t exclusive_size) {
-  // LOG_INFO("txn->sharedlocksize = %lu shared_size = %lu\n", txn->GetSharedLockSet()->size(), shared_size);
   EXPECT_EQ(txn->GetSharedLockSet()->size(), shared_size);
   EXPECT_EQ(txn->GetExclusiveLockSet()->size(), exclusive_size);
 }
@@ -80,6 +69,7 @@ void WoundWaitBasicTest() {
     }
 
     CheckAborted(&wait_txn);
+
     txn_mgr.Abort(&wait_txn);
   };
 
@@ -89,7 +79,7 @@ void WoundWaitBasicTest() {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
   }
 
-  // // TODO(peijingx): guarantee all are waiting on LockExclusive
+  // TODO(peijingx): guarantee all are waiting on LockExclusive
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   auto kill_task = [&]() {
@@ -115,10 +105,11 @@ void WoundWaitBasicTest() {
   for (size_t i = 0; i < num_kill; i++) {
     kill_threads.emplace_back(std::thread{kill_task});
   }
+
   for (size_t i = 0; i < num_wait; i++) {
     wait_threads[i].join();
   }
-  //
+
   CheckGrowing(&txn);
   txn_mgr.Commit(&txn);
   CheckCommitted(&txn);
@@ -335,8 +326,8 @@ void WoundUpgradeTest() {
   lock_mgr.LockShared(&txn, rid);
   std::atomic<bool> finish_update(false);
 
-  std::atomic<int> id_upgrade = 0;
-  std::atomic<int> id_read = 1;
+  std::atomic<int> id_upgrade {0};
+  std::atomic<int> id_read { 1};
 
   auto read_task = [&](const std::shared_future<void> &unlock_future) {
     Transaction txn1(id_read++);
@@ -399,8 +390,8 @@ void FairnessTest1() {
   txn_mgr.Begin(&txn_3);
   lock_mgr.LockExclusive(&txn_3, rid);
 
-  std::atomic<size_t> num_ready = 0;
-  std::atomic<size_t> read_index = 0;
+  std::atomic<size_t> num_ready { 0};
+  std::atomic<size_t> read_index {0};
   std::vector<int> reads_id{5, 4, 6};
 
   auto read_task = [&]() {
@@ -550,58 +541,16 @@ void FairnessTest2() {
 
 const size_t NUM_ITERS = 10;
 
-void UpgradeTest() {
-  LockManager lock_mgr{};
-  TransactionManager txn_mgr{&lock_mgr};
-  RID rid{0, 0};
-  Transaction txn(0);
-  txn_mgr.Begin(&txn);
-
-  bool res = lock_mgr.LockShared(&txn, rid);
-  EXPECT_TRUE(res);
-  CheckTxnLockSize(&txn, 1, 0);
-  CheckGrowing(&txn);
-
-  res = lock_mgr.LockUpgrade(&txn, rid);
-  EXPECT_TRUE(res);
-  CheckTxnLockSize(&txn, 0, 1);
-  CheckGrowing(&txn);
-
-  res = lock_mgr.Unlock(&txn, rid);
-  EXPECT_TRUE(res);
-  CheckTxnLockSize(&txn, 0, 0);
-  CheckShrinking(&txn);
-
-  txn_mgr.Commit(&txn);
-  CheckCommitted(&txn);
-}
-
-/****************************
- * Basic Tests (15 pts)
- ****************************/
-
-/*
- * Score 5
- * Description: test lock upgrade.
- */
-
-// TEST(LockManagerTest, UpgradeLockTest) {
-//   TEST_TIMEOUT_BEGIN
-//   for (size_t i = 0; i < NUM_ITERS; i++) {
-//     UpgradeTest();
-//   }
-//   TEST_TIMEOUT_FAIL_END(1000 * 30)
-// }
 /*
  * Score 10
  * Description: Check basic case if later txn will
  * die when it's waiting for previous txn is also waiting
  */
-TEST(LockManagerTest, WoundWaitTest) {
-  for (size_t i = 0; i < NUM_ITERS; i++) {
-    WoundWaitBasicTest();
-  }
-}
+// TEST(LockManagerTest, WoundWaitTest) {
+//   for (size_t i = 0; i < NUM_ITERS; i++) {
+//     WoundWaitBasicTest();
+//   }
+// }
 
 /*
  * Score 10
@@ -610,9 +559,9 @@ TEST(LockManagerTest, WoundWaitTest) {
  * happen (test won't hang).
  */
 // TEST(LockManagerTest, WoundWaitDeadlockTest) {
-//   for (size_t i = 0; i < NUM_ITERS; i++) {
-//     WoundWaitDeadlockTest();
-//   }
+  // for (size_t i = 0; i < NUM_ITERS; i++) {
+    // WoundWaitDeadlockTest();
+  // }
 // }
 
 /*
@@ -627,9 +576,9 @@ TEST(LockManagerTest, WoundWaitTest) {
  *    if the queue has transactions with smaller tid.
  */
 // TEST(LockManagerTest, WoundUpgradeTest) {
-//   for (size_t i = 0; i < NUM_ITERS; i++) {
-//     WoundUpgradeTest();
-//   }
+  // for (size_t i = 0; i < NUM_ITERS; i++) {
+    // WoundUpgradeTest();
+  // }
 // }
 
 /*
@@ -638,11 +587,11 @@ TEST(LockManagerTest, WoundWaitTest) {
  * 1) Queue is fair for incoming read requests
  * 2) Queue is fair for incoming read and write requests
  */
-// TEST(LockManagerTest, WoundWaitFairnessTest) {
-//   for (size_t i = 0; i < NUM_ITERS; i++) {
-//     FairnessTest1();
-//     FairnessTest2();
-//   }
-// }
+TEST(LockManagerTest, WoundWaitFairnessTest) {
+  for (size_t i = 0; i < NUM_ITERS; i++) {
+    FairnessTest1();
+    // FairnessTest2();
+  }
+}
 
 }  // namespace bustub
