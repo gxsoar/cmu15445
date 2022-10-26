@@ -24,7 +24,6 @@
 #include "common/config.h"
 #include "common/rid.h"
 #include "concurrency/transaction.h"
-// #include "concurrency/transaction_manager.h"
 
 namespace bustub {
 
@@ -52,7 +51,7 @@ class LockManager {
     std::condition_variable cv_;
     // txn_id of an upgrading transaction (if any)
     txn_id_t upgrading_ = INVALID_TXN_ID;
-    std::mutex mutex_;
+    std::mutex request_mutex_;
   };
 
  public:

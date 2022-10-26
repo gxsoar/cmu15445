@@ -326,8 +326,8 @@ void WoundUpgradeTest() {
   lock_mgr.LockShared(&txn, rid);
   std::atomic<bool> finish_update(false);
 
-  std::atomic<int> id_upgrade {0};
-  std::atomic<int> id_read { 1};
+  std::atomic<int> id_upgrade{0};
+  std::atomic<int> id_read{1};
 
   auto read_task = [&](const std::shared_future<void> &unlock_future) {
     Transaction txn1(id_read++);
@@ -390,8 +390,8 @@ void FairnessTest1() {
   txn_mgr.Begin(&txn_3);
   lock_mgr.LockExclusive(&txn_3, rid);
 
-  std::atomic<size_t> num_ready { 0};
-  std::atomic<size_t> read_index {0};
+  std::atomic<size_t> num_ready{0};
+  std::atomic<size_t> read_index{0};
   std::vector<int> reads_id{5, 4, 6};
 
   auto read_task = [&]() {
@@ -462,7 +462,7 @@ void FairnessTest2() {
     index_mutex.lock();
     size_t index = write_index++;
     index_mutex.unlock();
-
+    // LOG_INFO("index = %lu\n", index);
     int id = write_ids[index];
     bool expected_res = write_expected[index];
     bool should_abort = abort_expected[index];
@@ -546,11 +546,11 @@ const size_t NUM_ITERS = 10;
  * Description: Check basic case if later txn will
  * die when it's waiting for previous txn is also waiting
  */
-// TEST(LockManagerTest, WoundWaitTest) {
-//   for (size_t i = 0; i < NUM_ITERS; i++) {
-//     WoundWaitBasicTest();
-//   }
-// }
+TEST(LockManagerTest, WoundWaitTest) {
+  for (size_t i = 0; i < NUM_ITERS; i++) {
+    WoundWaitBasicTest();
+  }
+}
 
 /*
  * Score 10
@@ -558,11 +558,11 @@ const size_t NUM_ITERS = 10;
  * The main point for this test is to ensure no deadlock
  * happen (test won't hang).
  */
-// TEST(LockManagerTest, WoundWaitDeadlockTest) {
-  // for (size_t i = 0; i < NUM_ITERS; i++) {
-    // WoundWaitDeadlockTest();
-  // }
-// }
+TEST(LockManagerTest, WoundWaitDeadlockTest) {
+  for (size_t i = 0; i < NUM_ITERS; i++) {
+    WoundWaitDeadlockTest();
+  }
+}
 
 /*
  * Score 10
@@ -575,11 +575,11 @@ const size_t NUM_ITERS = 10;
  *    Test 3 also tests if later txn won't be added into the wait queue
  *    if the queue has transactions with smaller tid.
  */
-// TEST(LockManagerTest, WoundUpgradeTest) {
-  // for (size_t i = 0; i < NUM_ITERS; i++) {
-    // WoundUpgradeTest();
-  // }
-// }
+TEST(LockManagerTest, WoundUpgradeTest) {
+  for (size_t i = 0; i < NUM_ITERS; i++) {
+    WoundUpgradeTest();
+  }
+}
 
 /*
  * Score: 10
@@ -590,7 +590,7 @@ const size_t NUM_ITERS = 10;
 TEST(LockManagerTest, WoundWaitFairnessTest) {
   for (size_t i = 0; i < NUM_ITERS; i++) {
     FairnessTest1();
-    // FairnessTest2();
+    FairnessTest2();
   }
 }
 
