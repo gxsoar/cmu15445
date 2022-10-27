@@ -43,8 +43,10 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
           young_txn->SetState(TransactionState::ABORTED);
           ite = rq.erase(ite);
           rid_lock_rq.cv_.notify_all();
-        } else {
+        } else if (ite->txn_id_ < txn->GetTransactionId()) {
           flag = false;
+          ++ite;
+        } else {
           ++ite;
         }
       } else {
@@ -207,14 +209,12 @@ bool LockManager::CanLock(Transaction *txn, LockMode mode) {
     if (txn->GetIsolationLevel() == IsolationLevel::READ_UNCOMMITTED) {
       TransactionAbortException e(txn->GetTransactionId(), AbortReason::LOCKSHARED_ON_READ_UNCOMMITTED);
       txn->SetState(TransactionState::ABORTED);
-      throw e;
       return false;
     }
   }
   if (txn->GetState() == TransactionState::SHRINKING) {
     TransactionAbortException e(txn->GetTransactionId(), AbortReason::LOCK_ON_SHRINKING);
     txn->SetState(TransactionState::ABORTED);
-    throw e;
     return false;
   }
   return true;
