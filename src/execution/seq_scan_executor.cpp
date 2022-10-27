@@ -39,9 +39,7 @@ bool SeqScanExecutor::Next(Tuple *tuple, RID *rid) {
     tmp_rid = tmp_tuple.GetRid();
     if (!lgr->LockShared(txn, tmp_rid)) {
       txn_mgr->Abort(txn);
-      return false;
     }
-    // predicate在数据库中一般用于where, in, 等用来判断对应的值where后面的值是否存在, 如果不存在这些则predicate为空
     if (predicate == nullptr || predicate->Evaluate(&tmp_tuple, &table_schema).GetAs<bool>()) {
       const auto columns = out_put_schema->GetColumns();
       std::vector<Value> tmp_value;

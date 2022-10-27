@@ -39,13 +39,11 @@ bool UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
     if (txn->IsSharedLocked(tmp_rid)) {
       if (!lgr->LockUpgrade(txn, tmp_rid)) {
         txn_mgr->Abort(txn);
-        return false;
       }
     }
     if (!txn->IsExclusiveLocked(tmp_rid)) {
       if (!lgr->LockExclusive(txn, tmp_rid)) {
         txn_mgr->Abort(txn);
-        return false;
       }
     }
     if (!table_heap->GetTuple(tmp_rid, &tmp_tuple, exec_ctx_->GetTransaction())) {

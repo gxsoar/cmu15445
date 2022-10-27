@@ -39,13 +39,12 @@ bool DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
   while (child_executor_->Next(&tmp_tuple, &tmp_rid)) {
     if (txn->IsSharedLocked(tmp_rid)) {
       if (!lgr->LockUpgrade(txn, tmp_rid)) {
-        return false;
+        txn_mgr->Abort(txn);
       }
     }
     if (!txn->IsExclusiveLocked(tmp_rid)) {
       if (!lgr->LockExclusive(txn, tmp_rid)) {
         txn_mgr->Abort(txn);
-        return false;
       }
     }
     if (!table_heap->MarkDelete(tmp_rid, txn)) {

@@ -45,7 +45,6 @@ bool InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
       }
       if (!lgr->LockExclusive(txn, tmp_rid)) {
         txn_mgr->Abort(txn);
-        return false;
       }
       for (auto &index_info : indexs_info_) {
         const auto index_key =
